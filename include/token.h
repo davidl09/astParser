@@ -20,13 +20,20 @@
 #include <gtest/gtest.h>
 #endif
 
-
 template<typename T>
 concept FloatingPoint = std::is_floating_point_v<T>;
 
 class Token {
 public:
-    explicit Token(std::string val, bool isBinary, bool isUnary) : value(std::move(val)), isBinaryOperator(isBinary), isUnaryOperator(isUnary) {
+    enum TokenType : uint8_t {
+        ValueType = 0x0,
+        UnaryFuncType = 0x1,
+        BinaryFuncType = 0x2,
+        BracketType = 0x3,
+        RightAssociativeBinary = 0x2 | 0x4,
+    };
+
+    explicit Token(std::string val, Token::TokenType t) : value(std::move(val)), type(t) {
 
         if(!std::ranges::all_of(value, [](const auto& c) -> bool {
             return std::isalnum(c) || std::string_view{"().+-*/^"}.find(c) != std::string::npos;
@@ -40,33 +47,22 @@ public:
                 value.push_back('0');
         }
 
+        if (value == "^")
+            type = static_cast<TokenType>(type | TokenType::RightAssociativeBinary);
+
     };
 
-    Token(const Token& t) {
-        value = t.value;
-        isUnaryOperator = t.isUnaryOperator;
-        isBinaryOperator = t.isBinaryOperator;
-    }
+    Token(const Token& t) = default;
 
-    Token(Token&& t) noexcept {
-        value = std::move(t.value);
-        isUnaryOperator = t.isUnaryOperator;
-        isBinaryOperator = t.isBinaryOperator;
-    }
+    Token(Token&& t) = default;
 
     Token& operator=(const Token& t) = default;
 
-    Token& operator=(Token&& t) noexcept {
-        value = std::move(t.value);
-        isUnaryOperator = t.isUnaryOperator;
-        isBinaryOperator = t.isBinaryOperator;
-        return *this;
-    }
-
+    Token& operator=(Token&& t) = default;
 
     [[nodiscard]] constexpr
     bool isValue() const {
-        return !(isBinaryOperator || isUnaryOperator);
+        return type == TokenType::ValueType;
     }
 
     [[nodiscard]] constexpr
@@ -91,27 +87,42 @@ public:
 
     [[nodiscard]] constexpr
     bool isLeftBracket() const {
-        return value == "(" && isBinaryOperator && isUnaryOperator;
+        return value == "(" && type == TokenType::BracketType;
     }
 
     [[nodiscard]] constexpr
     bool isRightBracket() const {
-        return value == ")" && isBinaryOperator && isUnaryOperator;
+        return value == ")" && type == TokenType::BracketType;
     }
 
     [[nodiscard]] constexpr
     bool isUnaryOp() const {
-        return isUnaryOperator && !isBinaryOperator;
+        return type == TokenType::UnaryFuncType;
+    }
+
+    [[nodiscard]] constexpr
+    bool isAnyMinus() const {
+        return getStr() == "-";
     }
 
     [[nodiscard]] constexpr
     bool isUnaryMinus() const {
-        return getStr() == "-" && isUnaryOp();
+        return isAnyMinus() && isUnaryOp();
+    }
+
+    [[nodiscard]] constexpr
+    bool isBinaryMinus() const {
+        return isAnyMinus() && isBinaryOp();
     }
 
     [[nodiscard]] constexpr
     bool isBinaryOp() const {
-        return isBinaryOperator && !isUnaryOperator;
+        return type == BinaryFuncType || type == (BinaryFuncType | RightAssociativeBinary);
+    }
+
+    [[nodiscard]] constexpr
+    bool isRightAssociatve() const {
+        return (type & TokenType::RightAssociativeBinary);
     }
 
     [[nodiscard]] constexpr
@@ -122,11 +133,21 @@ public:
     constexpr
     friend bool operator==(const Token& lhs, const Token& rhs) {
         return
-        lhs.isUnaryOperator == rhs.isUnaryOperator
-        &&
-        lhs.isBinaryOperator == rhs.isBinaryOperator
+        lhs.type == rhs.type
         &&
         lhs.value == rhs.value;
+    }
+
+    constexpr void setAsUnaryMinus() {
+        if(value == "-") {
+            type = TokenType::UnaryFuncType;
+        }
+    }
+
+    constexpr void setAsBinaryMinus() {
+        if (value == "-") {
+            type = TokenType::BinaryFuncType;
+        }
     }
 
 private:
@@ -141,14 +162,13 @@ private:
     }
 
     std::string value;
-    bool isBinaryOperator;
-    bool isUnaryOperator;
+    TokenType type;
 };
 
 #ifdef DEBUG
 
 TEST(tokenTest, varTest) {
-    Token t{"a", false, false};
+    Token t{"a", Token::ValueType};
     ASSERT_TRUE(t.isValue());
     ASSERT_TRUE(t.isVariableValue());
     ASSERT_FALSE(t.isLiteralValue());
@@ -156,12 +176,30 @@ TEST(tokenTest, varTest) {
 }
 
 TEST(tokenTest, constructTest) {
-    Token t{"(", true, true};
+    Token t{"(", Token::BracketType};
     ASSERT_TRUE(t.isBracket());
     ASSERT_TRUE(t.isLeftBracket());
     ASSERT_FALSE(t.isLiteralValue());
     ASSERT_FALSE(t.isUnaryOp());
     ASSERT_FALSE(t.isBinaryOp());
+}
+
+TEST(tokenTest, funcTest) {
+    Token t{"sin", Token::UnaryFuncType};
+    ASSERT_TRUE(t.isUnaryOp());
+    ASSERT_FALSE(t.isUnaryMinus());
+    ASSERT_FALSE(t.isAnyMinus());
+    ASSERT_FALSE(t.isVariableValue());
+    ASSERT_FALSE(t.isBinaryOp());
+    ASSERT_TRUE(t.isUnaryOp());
+}
+
+TEST(tokenTest, rAssociateTest) {
+    Token t{"^", Token::BinaryFuncType};
+    ASSERT_TRUE(t.isBinaryOp());
+    ASSERT_TRUE(t.isRightAssociatve());
+    ASSERT_FALSE(t.isUnaryOp());
+    ASSERT_FALSE(t.isVariableValue());
 }
 
 #endif

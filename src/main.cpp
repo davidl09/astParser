@@ -6,9 +6,9 @@
 
 int main() {
 
-    Tokenizer t("3+-3x");
+    Tokenizer t("3sin(2-3x)");
     TokenExpression e{t.tokenize()};
-    auto result = e.insertImplicitMult().getExpression();
+    auto result = e.addImplMultiplication().getExpression();
     for (const auto& r : result) {
         std::cout << r.getStr() << "\n";
     }

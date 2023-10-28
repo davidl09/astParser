@@ -146,7 +146,7 @@ private:
 
         std::string_view result{current, current + count};
         current += count;
-        return std::move(Token{std::move(std::string{result}), false, false});
+        return std::move(Token{std::move(std::string{result}), Token::ValueType});
     }
 
     [[nodiscard]] Token handleVariable() {
@@ -162,7 +162,7 @@ private:
 
         std::string_view result{current, current + count};
         current += count;
-        return std::move(Token{std::move(std::string{result}), false, false});
+        return std::move(Token{std::move(std::string{result}), Token::ValueType});
     }
     
     [[nodiscard]] Token handleFuncCall()  {
@@ -173,16 +173,16 @@ private:
             result = {begin, ++current};
         }
 
-        return std::move(Token{std::move(std::string{result}), false, true});
+        return std::move(Token{std::move(std::string{result}), Token::UnaryFuncType});
     }
     
     [[nodiscard]] Token handleOperator() {
         std::string_view result;
-        return std::move(Token{{*current++}, true, false});
+        return std::move(Token{{*current++}, Token::BinaryFuncType});
     }
     
     [[nodiscard]] Token handleBracket() {
-        return std::move(Token{{*current++}, true, true});
+        return std::move(Token{{*current++}, Token::BracketType});
     }
 
     std::string expression;
@@ -191,17 +191,17 @@ private:
 };
 
 #ifdef DEBUG
-
 #include <gtest/gtest.h>
+
 TEST(tokenizerTest, ValidOp) {
 
     //Token(std::string val, bool isBinary, bool isUnary)
 
     Tokenizer t("3+4");
     std::vector<Token> test{
-            Token{"3", false, false},
-            Token{"+", true, false},
-            Token{"4", false, false}
+            Token{"3", Token::ValueType},
+            Token{"+", Token::BinaryFuncType},
+            Token{"4", Token::ValueType}
     };
 
     auto result = t.tokenize();
@@ -214,10 +214,10 @@ TEST(tokenizerTest, validFunc) {
 
     Tokenizer w("sin(a)");
     std::vector<Token> test {
-            Token{"sin", false, true},
-            Token{"(", true, true},
-            Token{"a", false, false},
-            Token{")", true, true}
+            Token{"sin", Token::UnaryFuncType},
+            Token{"(", Token::BracketType},
+            Token{"a", Token::ValueType},
+            Token{")", Token::BracketType}
     };
 
     auto result = w.tokenize();
@@ -230,12 +230,12 @@ TEST(tokenizerTest, validFuncOp) {
 
     Tokenizer w("sin(a+2)");
     std::vector<Token> test {
-            Token{"sin", false, true},
-            Token{"(", true, true},
-            Token{"a", false, false},
-            Token{"+", true, false},
-            Token{"2", false, false},
-            Token{")", true, true}
+            Token{"sin", Token::UnaryFuncType},
+            Token{"(", Token::BracketType},
+            Token{"a", Token::ValueType},
+            Token{"+", Token::BinaryFuncType},
+            Token{"2", Token::ValueType},
+            Token{")", Token::BracketType}
     };
 
     auto result = w.tokenize();
@@ -255,11 +255,11 @@ TEST(tokenizerTest, mismatchParen) {
 TEST(tokenizerTest, implicitMult) {
     Tokenizer w("3sin(a)");
     std::vector<Token> test {
-            Token{"3", false, false},
-            Token{"sin", false, true},
-            Token{"(", true, true},
-            Token{"a", false, false},
-            Token{")", true, true}
+            Token{"3", Token::ValueType},
+            Token{"sin", Token::UnaryFuncType},
+            Token{"(", Token::BracketType},
+            Token{"a", Token::ValueType},
+            Token{")", Token::BracketType}
     };
 
     auto result = w.tokenize();
