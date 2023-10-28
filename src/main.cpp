@@ -6,9 +6,8 @@
 
 int main() {
 
-    Tokenizer t("3sin(2-3x)");
-    TokenExpression e{t.tokenize()};
-    auto result = e.addImplMultiplication().getExpression();
+    TokenExpression t{Tokenizer("sin(3+cos(2))").tokenize()};
+    auto result = t.addImplMultiplication().setUnaryMinFlags().getPostfixExpression();
     for (const auto& r : result) {
         std::cout << r.getStr() << "\n";
     }

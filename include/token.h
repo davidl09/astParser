@@ -121,7 +121,7 @@ public:
     }
 
     [[nodiscard]] constexpr
-    bool isRightAssociatve() const {
+    bool isRightAssociative() const {
         return (type & TokenType::RightAssociativeBinary);
     }
 
@@ -197,9 +197,19 @@ TEST(tokenTest, funcTest) {
 TEST(tokenTest, rAssociateTest) {
     Token t{"^", Token::BinaryFuncType};
     ASSERT_TRUE(t.isBinaryOp());
-    ASSERT_TRUE(t.isRightAssociatve());
+    ASSERT_TRUE(t.isRightAssociative());
     ASSERT_FALSE(t.isUnaryOp());
     ASSERT_FALSE(t.isVariableValue());
+}
+
+TEST(tokenTest, bracketTest) {
+    Token t{")", Token::BracketType};
+    ASSERT_TRUE(t.isBracket());
+    ASSERT_TRUE(t.isRightBracket());
+    ASSERT_FALSE(t.isLeftBracket());
+    ASSERT_FALSE(t.isLiteralValue());
+    ASSERT_FALSE(t.isUnaryOp());
+    ASSERT_FALSE(t.isBinaryOp());
 }
 
 #endif

@@ -15,6 +15,8 @@ if(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
     message("Debug Build")
     add_compile_definitions("DEBUG")
     add_compile_options("-Og")
+    add_compile_options(${CMAKE_OPTIMI})
+    add_compile_options("-Wall" "-Werror")
     message("Building Tests")
     find_package(GTest REQUIRED)
 

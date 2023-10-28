@@ -146,7 +146,7 @@ private:
 
         std::string_view result{current, current + count};
         current += count;
-        return std::move(Token{std::move(std::string{result}), Token::ValueType});
+        return Token{std::string{result}, Token::ValueType};
     }
 
     [[nodiscard]] Token handleVariable() {
@@ -162,7 +162,7 @@ private:
 
         std::string_view result{current, current + count};
         current += count;
-        return std::move(Token{std::move(std::string{result}), Token::ValueType});
+        return Token{std::string{result}, Token::ValueType};
     }
     
     [[nodiscard]] Token handleFuncCall()  {
@@ -173,16 +173,16 @@ private:
             result = {begin, ++current};
         }
 
-        return std::move(Token{std::move(std::string{result}), Token::UnaryFuncType});
+        return Token{std::string{result}, Token::UnaryFuncType};
     }
     
     [[nodiscard]] Token handleOperator() {
         std::string_view result;
-        return std::move(Token{{*current++}, Token::BinaryFuncType});
+        return Token{{*current++}, Token::BinaryFuncType};
     }
     
     [[nodiscard]] Token handleBracket() {
-        return std::move(Token{{*current++}, Token::BracketType});
+        return Token{{*current++}, Token::BracketType};
     }
 
     std::string expression;
@@ -205,7 +205,7 @@ TEST(tokenizerTest, ValidOp) {
     };
 
     auto result = t.tokenize();
-    for (auto i = 0; i < result.size(); ++i) {
+    for (size_t i = 0; i < result.size(); ++i) {
         EXPECT_EQ(result[i], test[i]);
     }
 }
@@ -221,7 +221,7 @@ TEST(tokenizerTest, validFunc) {
     };
 
     auto result = w.tokenize();
-    for (auto i = 0; i < result.size(); ++i) {
+    for (size_t i = 0; i < result.size(); ++i) {
         EXPECT_EQ(result[i], test[i]);
     }
 }
@@ -239,7 +239,7 @@ TEST(tokenizerTest, validFuncOp) {
     };
 
     auto result = w.tokenize();
-    for (auto i = 0; i < result.size(); ++i) {
+    for (size_t i = 0; i < result.size(); ++i) {
         EXPECT_EQ(result[i], test[i]);
     }
 }
@@ -263,7 +263,7 @@ TEST(tokenizerTest, implicitMult) {
     };
 
     auto result = w.tokenize();
-    for (auto i = 0; i < result.size(); ++i) {
+    for (size_t i = 0; i < result.size(); ++i) {
         EXPECT_EQ(result[i], test[i]);
     }
 }
