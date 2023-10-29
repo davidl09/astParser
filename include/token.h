@@ -150,16 +150,18 @@ public:
         }
     }
 
-private:
 
     template<FloatingPoint T>
     T convert_to () const
     {
+        if(!isValue()) throw std::invalid_argument("Tried converting a non-value to a value");
         std::istringstream ss(value);
         T num;
         ss >> num;
         return std::move(num);
     }
+
+private:
 
     std::string value;
     TokenType type;

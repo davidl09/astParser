@@ -14,9 +14,11 @@
 template<FloatingPoint T>
 class AstNode {
 public:
-    AstNode(const std::string&) = delete;
+    AstNode() = default;
+    AstNode(AstNode&&) = default;
+    AstNode(const AstNode&) = default;
     virtual ~AstNode() = default;
-    virtual const T& get() = 0;
+    [[nodiscard]] virtual T evaluate() const = 0;
 };
 
 
@@ -26,10 +28,16 @@ template<FloatingPoint T>
 class ValueNode : public AstNode<T> {
 
 public:
-    explicit ValueNode(const T& value) : value(value) {}
-    explicit ValueNode(const std::string& in) : value(convert_to<T>(in)) {}
+    explicit ValueNode(const Token& token)
+    : AstNode<T>(), value(token.convert_to<T>())
+    {}
 
-    const T& get() const {
+    ValueNode(ValueNode&& old) noexcept
+    : AstNode<T>(), value(std::move(old.value)) {
+
+    }
+
+    [[nodiscard]] T evaluate() const final {
         return value;
     }
 
@@ -37,19 +45,40 @@ private:
     T value;
 };
 
+template<FloatingPoint T>
+class VariableNode : public AstNode<T> {
+public:
+    explicit VariableNode(std::string name_, const std::unordered_map<std::string, T>& varMap)
+    : AstNode<T>(), name(std::move(name_)), variables(varMap)
+    {}
 
+    VariableNode(VariableNode&& old) noexcept
+    : AstNode<T>(), name(std::move(old.name)), variables(std::move(old.variables))
+    {}
 
+    [[nodiscard]] T evaluate() const final {
+        return variables.at(name);
+    }
+
+private:
+    std::string name;
+    std::unordered_map<std::string, T> variables;
+};
 
 template<FloatingPoint T>
 class UnaryNode : public AstNode<T> {
 
 public:
-    /*UnaryNode(const std::function<T(const T&)>& function) : AstNode<T>(), eval(function) {}
-    UnaryNode(const std::string& in) : AstNode<T>(), eval(Parsing::unary_funcs<T>.at(in)) {}*/
-
-    const T& get() const {
-        return this->eval(child->get());
+    UnaryNode(std::function<T(T)> func, std::unique_ptr<AstNode<T>> child_)
+    : AstNode<T>(), eval(func), child(child_)
+    {}
+    [[nodiscard]]T evaluate() const {
+        return this->eval(child->evaluate());
     }
+
+    UnaryNode(UnaryNode&& old)
+    : eval(old.eval), child(old.child)
+    {}
 
 private:
     std::function<T(T)> eval;
@@ -58,14 +87,19 @@ private:
 
 
 
-
-
 template<FloatingPoint T>
 class BinaryNode : public AstNode<T> {
-
 public:
-    const T& get() const {
-        return this->eval(leftChild->get(), rightChild->get());
+    BinaryNode(std::function<T(T,T)> func, std::unique_ptr<AstNode<T>> left, std::unique_ptr<AstNode<T>> right)
+    : AstNode<T>(), eval(func), leftChild(std::move(left)), rightChild(std::move(right))
+    {}
+
+    BinaryNode(BinaryNode&& old) noexcept
+    : eval(old.func), leftChild(old.leftChild), rightChild(old.rightChild)
+    {}
+
+    [[nodiscard]] T evaluate() const final {
+        return this->eval(leftChild->evaluate(), rightChild->evaluate());
     }
 
 private:
@@ -110,8 +144,46 @@ public:
         {"abs",  [](const T &arg) -> T { return static_cast<T>(std::abs(arg)); }},
         {"-",    [](const T &arg) -> T { return -arg; }},
     })
-    {}
+    {
+        TokenExpression tokenExpression{Tokenizer(expression).tokenize()};
+        auto input = tokenExpression.setUnaryMinFlags().addImplMultiplication().getPostfixExpression();
 
+        /*std::vector<std::unique_ptr<AstNode<T>>> nodeStack;
+
+        for (auto it = input.begin(); it < input.end(); ++it) {
+            if (it->isLiteralValue()) {
+                nodeStack.emplace_back(std::make_unique<ValueNode<T>>(*it));
+            }
+
+            else if (it->isVariableValue()) {
+                nodeStack.emplace_back(std::make_unique<VariableNode<T>>(it->getStr(), variables));
+            }
+
+            else if (it->isUnaryOp()) {
+                auto temp = std::make_unique<UnaryNode<T>>(unaryFuncs.at(it->getStr()), std::move(expression.back()));
+                nodeStack.pop_back();
+                nodeStack.emplace_back(temp);
+            }
+
+            else if (it->isBinaryOp()) {
+                auto temp = std::make_unique<BinaryNode<T>>(binaryFuncs.at(it->getStr()), nodeStack.rbegin()[0].get(), nodeStack.rbegin()[1].get());
+                nodeStack.pop_back();
+                nodeStack.pop_back();
+                nodeStack.emplace_back(temp);
+            }
+        }
+
+        if (nodeStack.size() != 1) throw std::invalid_argument("Parser error");*/
+
+
+
+    }
+
+    T evaluate(std::unordered_map<std::string, T> vars) {
+        variables = vars;
+
+        return root->get();
+    }
 
     const auto &getBinaryFunc(std::string_view name) {
         return binaryFuncs.at(name);
@@ -144,7 +216,19 @@ private:
 
     std::unordered_map<std::string_view, std::function<T(T,T)>> binaryFuncs;
     std::unordered_map<std::string_view, std::function<T(T)>> unaryFuncs;
+    std::unordered_map<std::string, T> variables;
 };
+
+#ifdef DEBUG
+#include <gtest/gtest.h>
+
+#include <utility>
+
+TEST(expression, add) {
+    Expression<double> e("3+2");
+}
+
+#endif
 
 
 #endif //AST_EXPRESSION_H

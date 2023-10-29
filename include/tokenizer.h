@@ -195,8 +195,6 @@ private:
 
 TEST(tokenizerTest, ValidOp) {
 
-    //Token(std::string val, bool isBinary, bool isUnary)
-
     Tokenizer t("3+4");
     std::vector<Token> test{
             Token{"3", Token::ValueType},
