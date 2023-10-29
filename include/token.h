@@ -30,8 +30,8 @@ public:
         ValueType = 0x0,
         UnaryFuncType = 0x1,
         BinaryFuncType = 0x2,
-        BracketType = 0x3,
-        RightAssociativeBinary = 0x2 | 0x4,
+        BracketType = 0x4,
+        RightAssociativeBinary = 0x08
     };
 
     explicit Token(std::string val, Token::TokenType t) : value(std::move(val)), type(t) {
