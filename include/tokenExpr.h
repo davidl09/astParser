@@ -22,12 +22,7 @@ public:
     operatorStack(),
     inputStack(),
     evalOrder(std::move(order))
-    {
-        for (auto it = expression.rbegin(); it < expression.rend(); ++it) {
-            //top of inputStack is the beginning of the expression
-            inputStack.push(*it);
-        }
-    }
+    {}
 
     auto& addImplMultiplication() {
 //adds explicit multiplication operators where they are usually implied by convention
@@ -58,6 +53,12 @@ public:
 
     std::vector<Token> getPostfixExpression() {
         std::vector<Token> output;
+
+        //copy expression to input stack to reverse it
+        for (auto it = expression.rbegin(); it < expression.rend(); ++it) {
+            //top of inputStack is the beginning of the expression
+            inputStack.push(*it);
+        }
 
         while (!inputStack.empty()) {
             if (inputStack.top().isBracket()) {
@@ -95,7 +96,6 @@ private:
     auto precedence(const Token& t) const {
         if(t.isBinaryOp())
             return evalOrder.at(t.getStr());
-
         return 1;
     }
 

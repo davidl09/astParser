@@ -6,11 +6,9 @@
 
 int main() {
 
-/*
     Expression<double> e("-5+2");
 
     std::cout << e.evaluate({{"x", 0}}) << "\n";
-*/
 
 #ifdef DEBUG
     testing::InitGoogleTest();
