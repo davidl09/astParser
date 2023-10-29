@@ -15,6 +15,7 @@
 #include <unordered_map>
 #include <functional>
 #include <utility>
+#include <cassert>
 
 #ifdef DEBUG
 #include <gtest/gtest.h>

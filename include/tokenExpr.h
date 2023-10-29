@@ -10,11 +10,14 @@
 
 class TokenExpression {
 public:
-    explicit TokenExpression(std::vector<Token> tokens, std::unordered_map<std::string, int> order = {{"+", 2},
-                                                                                                           {"-", 2},
-                                                                                                           {"/", 3},
-                                                                                                           {"*", 4},
-                                                                                                           {"^", 5}})
+    explicit TokenExpression(std::vector<Token> tokens, std::unordered_map<std::string, int> order = {
+            {"+", 2},
+            {"-", 2},
+            {"/", 3},
+            {"*", 4},
+            {"^", 5}
+    }
+    )
     : expression(std::move(tokens)),
     operatorStack(),
     inputStack(),
@@ -48,7 +51,6 @@ public:
                         || (it - 1)->isBinaryOp() // '-' sign after another operator is always unary
                 )
                     it->setAsUnaryMinus();
-
             }
         }
         return *this;
@@ -111,7 +113,8 @@ private:
                 output.emplace_back(operatorStack.top());
                 operatorStack.pop();
             }
-            assert(operatorStack.top().getStr() == "(");
+
+            if(!operatorStack.top().isLeftBracket()) throw std::invalid_argument("Expected '('");
             operatorStack.pop();
             inputStack.pop();
             //error if the popped value is not '('
@@ -137,7 +140,7 @@ private:
 
     void handleUnaryOp(std::vector<Token>& output) {
         if (inputStack.top().isUnaryOp()) {
-            operatorStack.push(inputStack.top());
+            operatorStack.push(std::move(inputStack.top()));
             inputStack.pop();
         }
 #ifdef DEBUG
@@ -223,6 +226,8 @@ TEST(tokenExpr, unaryMinus3) {
     ASSERT_FALSE(result[0].isRightAssociative());
 }
 
+
+
 TEST(tokenExpr, postFix) {
     TokenExpression t{Tokenizer("3+2").tokenize()};
     auto result = t.addImplMultiplication().setUnaryMinFlags().getPostfixExpression();
@@ -255,6 +260,15 @@ TEST(tokenExpr, postFix3) {
     }
 
     ASSERT_STREQ(testResult.c_str(), expResult);
+}
+
+TEST(exprUsage, unaryMinus) {
+
+    TokenExpression tokenExpression{Tokenizer{"-5+2"}.tokenize()};
+    auto input = tokenExpression.setUnaryMinFlags().addImplMultiplication().getPostfixExpression();
+
+    ASSERT_TRUE(input.back().isUnaryMinus());
+
 }
 
 
