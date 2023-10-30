@@ -102,8 +102,10 @@ public:
         try {
             variables.at(name);
         }
-        catch (std::out_of_range& e) {
+        catch (std::exception& e) {
+#ifdef DEBUG
             std::cerr << "Missing variable value: " << name << "\n";
+#endif
             return false;
         }
         return true;
@@ -193,7 +195,7 @@ private:
 template<FloatingPoint T>
 class Expression {
 public:
-    explicit Expression(const std::string &expression)
+    explicit Expression(const std::string &expression, bool noExcept = true)
     : isValid(false), root(nullptr),
 
     binaryFuncs({
@@ -202,9 +204,6 @@ public:
         {"*", [](const T &lhs, const T &rhs) -> T { return lhs * rhs; }},
         {"/", [](const T &lhs, const T &rhs) -> T { return lhs / rhs; }},
         {"^", [](const T &lhs, const T &rhs) -> T { return std::pow(lhs, rhs); }},
-        /*{"logn", [](const T &base, const T &val) -> T {
-                return std::log(val) / std::log(base);
-            }},*/
     }),
 
     unaryFuncs({
@@ -225,25 +224,38 @@ public:
         {"-",    [](const T &arg) -> T { return -arg; }},
     })
     {
-        checkAndInit(expression);
+        if (noExcept) {
+            checkAndInit(expression);
+        }
+        else {
+            checkInitWithExcept(expression);
+        }
     }
 
     Expression(const Expression& old)
-    : isValid(old.isValid), root(old.root->clone()), binaryFuncs(old.binaryFuncs), unaryFuncs(old.unaryFuncs), variables(old.variables)
+    : isValid(old.isValid), root(old.root ? old.root->clone() : nullptr), binaryFuncs(old.binaryFuncs), unaryFuncs(old.unaryFuncs), variables(old.variables)
     {}
 
     Expression(Expression&& old) noexcept
-    : isValid(old.isValid), root(std::move(old.root)), binaryFuncs(std::move(old.binaryFuncs)), unaryFuncs(std::move(old.unaryFuncs)), variables(std::move(old.variables))
-    {
-        old.isValid = false;
-    }
-
-    Expression()
-    : isValid(false), root(nullptr)
+    : isValid(old.isValid), root(old.root ? std::move(old.root) : nullptr), binaryFuncs(std::move(old.binaryFuncs)), unaryFuncs(std::move(old.unaryFuncs)), variables(std::move(old.variables))
     {}
 
-    T evaluate(const std::unordered_map<std::string, T>& vars) {
-        variables = vars;
+    Expression() {
+        *this = Expression<T>("0");
+    }
+
+    T evaluate(const std::unordered_map<std::string, T>& vars = {{}}) {
+        //insert provided variables into expression's var object
+        try {
+            std::ranges::for_each(variables, [&](auto& keyVal) {
+                keyVal.second = vars.at(keyVal.first);
+            });
+        }
+        catch (std::exception& e) {
+            throw std::invalid_argument("Unspecified variable value");
+        }
+
+
         if (!isValid) throw std::invalid_argument("Tried to evaluate invalid expression");
         return root->evaluate();
     }
@@ -284,19 +296,35 @@ public:
     friend std::istream& operator>>(std::istream& in, Expression<T>& e) {
         std::string input;
         std::getline(std::cin, input);
-        e.checkAndInit(input);
+        e.checkInitWithExcept(input);
         return in;
     }
 
-    void checkAndInit(const std::string& expression, std::unordered_map<std::string, T> vars = {{}}) {
+    Expression& operator=(const Expression& rhs) {
+        isValid = rhs.isValid;
+        root = rhs.root ? rhs.root->clone() : nullptr;
+        binaryFuncs = rhs.binaryFuncs;
+        unaryFuncs = rhs.unaryFuncs;
+        return *this;
+    }
+
+    void checkAndInit(const std::string& expression, std::unordered_map<std::string, T> vars = {{}}) noexcept {
+        //checks validity of expression and catches exceptions -> return invalidated (unusable expression) if something goes wrong
+
         try {
             init(expression);
         }
         catch (std::invalid_argument& e) {
+#ifdef DEBUG
             std::cerr << "Invalid Expression: " << e.what() << "\n";
+#endif
             invalidate();
             return;
         }
+        if (!root) {
+            invalidate();
+        }
+
         isValid = root->validateNode();
 
         if (!isValid) {
@@ -304,21 +332,30 @@ public:
         }
     }
 
+    void checkInitWithExcept(const std::string& expression, std::unordered_map<std::string, T> vars = {{}}) {
+        init(expression);
+    }
+
 private:
 
     void init(const std::string& expression) {
+        if (expression.empty()) {
+            throw std::invalid_argument("Cannot initialize empty expression");
+        }
+
         Tokenizer tokenizer(expression);
         if (!tokenizer.isValidCharExpr()) throw std::invalid_argument("Invalid expression");
-
         TokenExpression tokenExpression{tokenizer.tokenize()};
+
         auto tempVars = tokenExpression.getVariables();
+        variables.clear();
         std::ranges::for_each(tempVars, [&](const Token& t){variables[t.getStr()];});
 
-        auto input = tokenExpression.setUnaryMinFlags().addImplMultiplication().getPostfixExpression();
-
+        auto postfixExpression = tokenExpression.setUnaryMinFlags().addImplMultiplication().getPostfixExpression();
         std::vector<std::unique_ptr<AstNode<T>>> nodeStack;
 
-        for (auto it = input.begin(); it < input.end(); ++it) {
+
+        for (auto it = postfixExpression.begin(); it < postfixExpression.end(); ++it) {
             if (it->isVariableValue()) {
                 nodeStack.emplace_back(
                         std::make_unique<VariableNode<T>>(it->getStr(), variables)
@@ -332,13 +369,23 @@ private:
             }
 
             else if (it->isUnaryOp()) {
+                if (nodeStack.empty()) {
+                    throw std::invalid_argument("Expected argument to unary operator '" + it->getStr() + "'");
+                }
+
                 auto temp = std::make_unique<UnaryNode<T>>(unaryFuncs.at(it->getStr()), std::move(nodeStack.back()));
+
                 nodeStack.pop_back();
                 nodeStack.emplace_back(std::move(temp));
             }
 
             else if (it->isBinaryOp()) {
+                if (nodeStack.size() < 2) {
+                    throw std::invalid_argument("Expected argument(s) to binary operator '" + it->getStr() + "'");
+                }
+
                 auto temp = std::make_unique<BinaryNode<T>>(binaryFuncs.at(it->getStr()), std::move(nodeStack.rbegin()[1]), std::move(nodeStack.rbegin()[0]));
+
                 nodeStack.pop_back();
                 nodeStack.pop_back();
                 nodeStack.emplace_back(std::move(temp));
@@ -351,6 +398,7 @@ private:
         }
 
         root = std::move(nodeStack.front());
+        nodeStack.pop_back();
 
         if (root == nullptr) {
             throw std::invalid_argument("Malformed expression, could not generate parse tree");

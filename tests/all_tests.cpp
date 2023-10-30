@@ -286,15 +286,22 @@ TEST(expression7, variables) {
 /* need to fix corruption with invalid expression */
 TEST(expression8, invalid_expression) {
     // This test checks if the class handles invalid expressions properly.
-    EXPECT_THROW(Expression<double>("2+"), std::exception);
+    EXPECT_THROW(Expression<double> expression("2+", false), std::invalid_argument);
+
+    Expression<double> e("3+", true);
+    EXPECT_THROW(e.evaluate(), std::invalid_argument);
+    EXPECT_FALSE(e.isValidExpr());
 }
 
+TEST(expressionThrow, invalid_noThrow) {
+    EXPECT_NO_THROW(Expression<double> e("3-7+", true));
+}
 
 
 TEST(expression9, undefined_variable) {
     // This test checks if the class handles undefined variables properly.
     Expression<double> e("x + y");
-    EXPECT_THROW(e.evaluate({{"x", 3.5}}), std::out_of_range);
+    EXPECT_THROW(e.evaluate({{"x", 3.5}}), std::exception);
 }
 
 TEST(unaryTest, unaryMinus) {
@@ -313,6 +320,12 @@ TEST(expressionTest, cloneTest) {
     Expression<double> copy(e);
     auto res2 = e.evaluate({{}});
     EXPECT_DOUBLE_EQ(res1, res2);
+}
+
+TEST(validity, emptyExpr) {
+    Expression<double> e;
+    ASSERT_TRUE(e.isValidExpr());
+    ASSERT_NO_THROW(e.evaluate());
 }
 
 
