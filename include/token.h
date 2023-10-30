@@ -54,7 +54,7 @@ public:
         }
 
         if (value == "^")
-            type = static_cast<TokenType>(type | TokenType::RightAssociativeBinary);
+            type = static_cast<TokenType>(type | TokenType::RightAssociative);
 
     };
 
@@ -123,12 +123,12 @@ public:
 
     [[nodiscard]] constexpr
     bool isBinaryOp() const {
-        return type == BinaryFuncType || type == (BinaryFuncType | RightAssociativeBinary);
+        return type == BinaryFuncType || type == (BinaryFuncType | RightAssociative);
     }
 
     [[nodiscard]] constexpr
     bool isRightAssociative() const {
-        return (type & TokenType::RightAssociativeBinary);
+        return (type & TokenType::RightAssociative);
     }
 
     [[nodiscard]] constexpr
