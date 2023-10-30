@@ -16,13 +16,18 @@
 #include <functional>
 #include <utility>
 #include <cassert>
-
-#ifdef DEBUG
-#include <gtest/gtest.h>
-#endif
+#include <complex>
 
 template<typename T>
-concept FloatingPoint = std::is_floating_point_v<T>;
+struct is_complex : std::false_type {};
+
+template<typename T>
+struct is_complex<std::complex<T>> : std::true_type {};
+
+
+
+template<typename T>
+concept FloatingPoint = std::is_floating_point_v<T> || is_complex<T>::value;
 
 class Token {
 public:
@@ -139,13 +144,13 @@ public:
         lhs.value == rhs.value;
     }
 
-    constexpr void setAsUnaryMinus() {
+    void setAsUnaryMinus() {
         if(value == "-") {
             type = TokenType::UnaryFuncType;
         }
     }
 
-    constexpr void setAsBinaryMinus() {
+    void setAsBinaryMinus() {
         if (value == "-") {
             type = TokenType::BinaryFuncType;
         }
@@ -159,7 +164,7 @@ public:
         std::istringstream ss(value);
         T num;
         ss >> num;
-        return std::move(num);
+        return num;
     }
 
 private:
@@ -167,55 +172,6 @@ private:
     std::string value;
     TokenType type;
 };
-
-#ifdef DEBUG
-
-TEST(tokenTest, varTest) {
-    Token t{"a", Token::ValueType};
-    ASSERT_TRUE(t.isValue());
-    ASSERT_TRUE(t.isVariableValue());
-    ASSERT_FALSE(t.isLiteralValue());
-    ASSERT_TRUE(t.isValidToken());
-}
-
-TEST(tokenTest, constructTest) {
-    Token t{"(", Token::BracketType};
-    ASSERT_TRUE(t.isBracket());
-    ASSERT_TRUE(t.isLeftBracket());
-    ASSERT_FALSE(t.isLiteralValue());
-    ASSERT_FALSE(t.isUnaryOp());
-    ASSERT_FALSE(t.isBinaryOp());
-}
-
-TEST(tokenTest, funcTest) {
-    Token t{"sin", Token::UnaryFuncType};
-    ASSERT_TRUE(t.isUnaryOp());
-    ASSERT_FALSE(t.isUnaryMinus());
-    ASSERT_FALSE(t.isAnyMinus());
-    ASSERT_FALSE(t.isVariableValue());
-    ASSERT_FALSE(t.isBinaryOp());
-    ASSERT_TRUE(t.isUnaryOp());
-}
-
-TEST(tokenTest, rAssociateTest) {
-    Token t{"^", Token::BinaryFuncType};
-    ASSERT_TRUE(t.isBinaryOp());
-    ASSERT_TRUE(t.isRightAssociative());
-    ASSERT_FALSE(t.isUnaryOp());
-    ASSERT_FALSE(t.isVariableValue());
-}
-
-TEST(tokenTest, bracketTest) {
-    Token t{")", Token::BracketType};
-    ASSERT_TRUE(t.isBracket());
-    ASSERT_TRUE(t.isRightBracket());
-    ASSERT_FALSE(t.isLeftBracket());
-    ASSERT_FALSE(t.isLiteralValue());
-    ASSERT_FALSE(t.isUnaryOp());
-    ASSERT_FALSE(t.isBinaryOp());
-}
-
-#endif
 
 
 #endif //AST_TOKEN_H

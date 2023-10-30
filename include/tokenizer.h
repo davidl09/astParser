@@ -23,6 +23,8 @@ public:
     std::vector<Token> tokenize() {
         //any alphanumeric string is treated as a multi-letter variable unless it is followed by a left parenthesis
         std::vector<Token> tokenizedResult;
+
+        std::erase_if(expression, [](const auto& c){return c <= ' ';});
         
         while (current != expression.end()) {
             
@@ -41,7 +43,7 @@ public:
             else if (isOperator(current))
                 tokenizedResult.emplace_back(handleOperator());
 
-            else ++current;
+            else throw std::invalid_argument("Invalid charater detected: " + std::string{*current});
         }
         return tokenizedResult;
     }
@@ -59,25 +61,6 @@ public:
     }
 
 private:
-
-    std::string::const_iterator seekClosingParenthesis(std::string::const_iterator leftParen) {
-        std::stack<char> pStack;
-
-        while (leftParen < expression.end()) {
-            if (*leftParen == '(')
-                pStack.push(*leftParen);
-            else if (*leftParen == ')')
-                pStack.pop();
-            if (pStack.empty()) return leftParen;
-            ++leftParen;
-        }
-
-        if(leftParen == expression.end())
-            throw std::invalid_argument("Expected ')' before end of string");
-
-        return leftParen;
-    }
-
     bool matchedBrackets() {
         int count = 0;
         
@@ -189,83 +172,5 @@ private:
     std::string::const_iterator current;
 
 };
-
-#ifdef DEBUG
-#include <gtest/gtest.h>
-
-TEST(tokenizerTest, ValidOp) {
-
-    Tokenizer t("3+4");
-    std::vector<Token> test{
-            Token{"3", Token::ValueType},
-            Token{"+", Token::BinaryFuncType},
-            Token{"4", Token::ValueType}
-    };
-
-    auto result = t.tokenize();
-    for (size_t i = 0; i < result.size(); ++i) {
-        EXPECT_EQ(result[i], test[i]);
-    }
-}
-
-TEST(tokenizerTest, validFunc) {
-
-    Tokenizer w("sin(a)");
-    std::vector<Token> test {
-            Token{"sin", Token::UnaryFuncType},
-            Token{"(", Token::BracketType},
-            Token{"a", Token::ValueType},
-            Token{")", Token::BracketType}
-    };
-
-    auto result = w.tokenize();
-    for (size_t i = 0; i < result.size(); ++i) {
-        EXPECT_EQ(result[i], test[i]);
-    }
-}
-
-TEST(tokenizerTest, validFuncOp) {
-
-    Tokenizer w("sin(a+2)");
-    std::vector<Token> test {
-            Token{"sin", Token::UnaryFuncType},
-            Token{"(", Token::BracketType},
-            Token{"a", Token::ValueType},
-            Token{"+", Token::BinaryFuncType},
-            Token{"2", Token::ValueType},
-            Token{")", Token::BracketType}
-    };
-
-    auto result = w.tokenize();
-    for (size_t i = 0; i < result.size(); ++i) {
-        EXPECT_EQ(result[i], test[i]);
-    }
-}
-
-TEST(tokenizerTest, invalidChar) {
-    EXPECT_THROW(Tokenizer t("sin(a^&3)"); t.tokenize(), std::invalid_argument);
-}
-
-TEST(tokenizerTest, mismatchParen) {
-    EXPECT_THROW(Tokenizer t("sin(3x"); t.tokenize(), std::invalid_argument);
-}
-
-TEST(tokenizerTest, implicitMult) {
-    Tokenizer w("3sin(a)");
-    std::vector<Token> test {
-            Token{"3", Token::ValueType},
-            Token{"sin", Token::UnaryFuncType},
-            Token{"(", Token::BracketType},
-            Token{"a", Token::ValueType},
-            Token{")", Token::BracketType}
-    };
-
-    auto result = w.tokenize();
-    for (size_t i = 0; i < result.size(); ++i) {
-        EXPECT_EQ(result[i], test[i]);
-    }
-}
-
-#endif
 
 #endif //AST_TOKENIZER_H

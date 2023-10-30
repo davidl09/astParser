@@ -18,7 +18,8 @@ if(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
     add_compile_options("-O0")
     add_compile_options("-Wall" "-Werror")
     message("Building Tests")
-    find_package(GTest REQUIRED)
+    add_subdirectory(tests)
+
 
 elseif(${CMAKE_BUILD_TYPE} STREQUAL "Release")
     message("Release Build")
@@ -30,8 +31,3 @@ add_subdirectory(src)
 
 target_link_libraries(ast PUBLIC tbb)
 
-if(${CMAKE_BUILD_TYPE} STREQUAL Debug)
-    target_link_libraries(ast PRIVATE
-            GTest::GTest
-    )
-endif ()

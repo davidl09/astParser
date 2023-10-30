@@ -9,6 +9,9 @@
 #include "tokenizer.h"
 #include "tokenExpr.h"
 
+#include <stdexcept>
+#include <iostream>
+
 
 
 template<FloatingPoint T>
@@ -18,9 +21,11 @@ public:
     AstNode(AstNode&&) = default;
     AstNode(const AstNode&) = default;
     virtual ~AstNode() = default;
-    [[nodiscard]] virtual T evaluate() const = 0;
-};
 
+    [[nodiscard]] virtual T evaluate() const = 0;
+    [[nodiscard]] virtual T evalThreadSafe(const std::unordered_map<std::string, T>& map) const = 0;
+    [[nodiscard]] virtual std::unique_ptr<AstNode<T>> clone() const = 0;
+};
 
 
 
@@ -37,17 +42,29 @@ public:
     {}
 
     ValueNode(ValueNode&& old) noexcept
-    : AstNode<T>(), value(std::move(old.value)) {
+    : AstNode<T>(), value(std::move(old.value))
+    {}
 
+    ValueNode(const ValueNode& old)
+    : value(old.value)
+    {}
+
+    [[nodiscard]] std::unique_ptr<AstNode<T>> clone() const final {
+        return std::move(std::make_unique<ValueNode<T>>(this->value));
     }
 
     [[nodiscard]] T evaluate() const final {
         return value;
     }
 
+    [[nodiscard]] T evalThreadSafe(const std::unordered_map<std::string, T>& map) const final {
+        return value;
+    }
 private:
     T value;
 };
+
+
 
 template<FloatingPoint T>
 class VariableNode : public AstNode<T> {
@@ -60,14 +77,28 @@ public:
     : AstNode<T>(), name(std::move(old.name)), variables(std::move(old.variables))
     {}
 
+    VariableNode(const VariableNode& old)
+    : name(old.name), variables(old.variables)
+    {}
+
+    [[nodiscard]] std::unique_ptr<AstNode<T>> clone() const final {
+        return std::move(std::make_unique<VariableNode<T>>(name, variables));
+    }
+
     [[nodiscard]] T evaluate() const final {
         return variables.at(name);
+    }
+
+    [[nodiscard]] T evalThreadSafe(const std::unordered_map<std::string, T>& map) const final {
+        return map.at(name);
     }
 
 private:
     std::string name;
     std::unordered_map<std::string, T>& variables;
 };
+
+
 
 template<FloatingPoint T>
 class UnaryNode : public AstNode<T> {
@@ -76,13 +107,26 @@ public:
     UnaryNode(std::function<T(T)> func, std::unique_ptr<AstNode<T>>&& child_)
     : AstNode<T>(), eval(std::move(func)), child(std::move(child_))
     {}
-    [[nodiscard]] T evaluate() const final {
-        return this->eval(child->evaluate());
-    }
 
     UnaryNode(UnaryNode&& old) noexcept
     : eval(std::move(old.eval)), child(std::move(old.child))
     {}
+
+    UnaryNode(const UnaryNode& old) {
+        *this = old.clone();
+    }
+
+    [[nodiscard]] std::unique_ptr<AstNode<T>> clone() const final {
+        return std::move(std::make_unique<UnaryNode<T>>(std::function<T(T)>(eval), child->clone()));
+    }
+
+    [[nodiscard]] T evaluate() const final {
+        return this->eval(child->evaluate());
+    }
+
+    [[nodiscard]] T evalThreadSafe(const std::unordered_map<std::string, T>& map) const final {
+        return this->eval(child->evalThreadSafe(map));
+    }
 
 private:
     std::function<T(T)> eval;
@@ -102,16 +146,26 @@ public:
     : eval(old.func), leftChild(old.leftChild), rightChild(old.rightChild)
     {}
 
+    BinaryNode(const BinaryNode& old) {
+        *this = old.clone();
+    }
+
+    [[nodiscard]] std::unique_ptr<AstNode<T>> clone() const final {
+        return std::move(std::make_unique<BinaryNode<T>>(std::function<T(T,T)>{eval}, std::move(leftChild->clone()), std::move(rightChild->clone())));
+    }
+
     [[nodiscard]] T evaluate() const final {
-        return this->eval(rightChild->evaluate(), leftChild->evaluate());
+        return this->eval(leftChild->evaluate(), rightChild->evaluate());
+    }
+
+    [[nodiscard]] T evalThreadSafe(const std::unordered_map<std::string, T>& map) const final {
+        return this->eval(leftChild->evalThreadSafe(map), rightChild->evalThreadSafe(map));
     }
 
 private:
     std::function<T(const T&, const T&)> eval;
     std::unique_ptr<AstNode<T>> leftChild, rightChild;
 };
-
-
 
 
 
@@ -149,45 +203,12 @@ public:
         {"-",    [](const T &arg) -> T { return -arg; }},
     })
     {
-        TokenExpression tokenExpression{Tokenizer(expression).tokenize()};
-        auto input = tokenExpression.setUnaryMinFlags().addImplMultiplication().getPostfixExpression();
-
-        std::vector<std::unique_ptr<AstNode<T>>> nodeStack;
-
-        for (auto it = input.begin(); it < input.end(); ++it) {
-            if (it->isVariableValue()) {
-                nodeStack.emplace_back(
-                        std::make_unique<VariableNode<T>>(it->getStr(), variables)
-                        );
-            }
-
-            else if (it->isLiteralValue()) {
-                nodeStack.emplace_back(
-                        std::make_unique<ValueNode<T>>(it->convert_to<T>())
-                        );
-            }
-
-            else if (it->isUnaryOp()) {
-                auto temp = std::make_unique<UnaryNode<T>>(unaryFuncs.at(it->getStr()), std::move(nodeStack.back()));
-                nodeStack.pop_back();
-                nodeStack.emplace_back(std::move(temp));
-            }
-
-            else if (it->isBinaryOp()) {
-                auto temp = std::make_unique<BinaryNode<T>>(binaryFuncs.at(it->getStr()), std::move(nodeStack.rbegin()[0]), std::move(nodeStack.rbegin()[1]));
-                nodeStack.pop_back();
-                nodeStack.pop_back();
-                nodeStack.emplace_back(std::move(temp));
-            }
-        }
-
-        if (nodeStack.size() != 1) {
-            std::cout << nodeStack.size();
-            throw std::invalid_argument("Unbalanced equation");
-        }
-
-        root = std::move(nodeStack.front());
+        init(expression);
     }
+
+    Expression(const Expression& old)
+    : root(old.root->clone()), binaryFuncs(old.binaryFuncs), unaryFuncs(old.unaryFuncs), variables(old.variables)
+    {}
 
     T evaluate(std::unordered_map<std::string, T> vars) {
         variables = vars;
@@ -219,82 +240,88 @@ public:
     }
 
 
+    friend std::istream& operator>>(std::istream& in, Expression<T>& e) {
+        std::string input;
+        std::getline(std::cin, input);
+        e.init(input);
+        return in;
+    }
+
+    std::unordered_map<std::string, T> getEmptyVars() {
+
+    }
+
+    bool checkAndInit(const std::string& expression, std::unordered_map<std::string, T> vars = {{}}) {
+        try {
+            init(expression);
+        }
+        catch (std::invalid_argument& e) {
+            std::cerr << "Invalid Expression: " << e.what() << "\n";
+            return false;
+        }
+
+        try {
+            evaluate(vars);
+        }
+        catch (std::exception& e) {
+            std::cerr << "Evaluation error: " << e.what() << "\n";
+            return false;
+        }
+
+        return true;
+    }
 
 private:
+
+    void init(const std::string& expression) {
+        Tokenizer tokenizer(expression);
+        if (!tokenizer.isValidCharExpr()) throw std::invalid_argument("Invalid expression");
+
+        TokenExpression tokenExpression{tokenizer.tokenize()};
+        auto input = tokenExpression.setUnaryMinFlags().addImplMultiplication().getPostfixExpression();
+
+        std::vector<std::unique_ptr<AstNode<T>>> nodeStack;
+
+        for (auto it = input.begin(); it < input.end(); ++it) {
+            if (it->isVariableValue()) {
+                nodeStack.emplace_back(
+                        std::make_unique<VariableNode<T>>(it->getStr(), variables)
+                        );
+            }
+
+            else if (it->isLiteralValue()) {
+                nodeStack.emplace_back(
+                        std::make_unique<ValueNode<T>>(it->convert_to<T>())
+                        );
+            }
+
+            else if (it->isUnaryOp()) {
+                auto temp = std::make_unique<UnaryNode<T>>(unaryFuncs.at(it->getStr()), std::move(nodeStack.back()));
+                nodeStack.pop_back();
+                nodeStack.emplace_back(std::move(temp));
+            }
+
+            else if (it->isBinaryOp()) {
+                auto temp = std::make_unique<BinaryNode<T>>(binaryFuncs.at(it->getStr()), std::move(nodeStack.rbegin()[1]), std::move(nodeStack.rbegin()[0]));
+                nodeStack.pop_back();
+                nodeStack.pop_back();
+                nodeStack.emplace_back(std::move(temp));
+            }
+        }
+
+        if (nodeStack.size() != 1) {
+            std::cout << nodeStack.size();
+            throw std::invalid_argument("Unbalanced equation");
+        }
+
+        root = std::move(nodeStack.front());
+    } 
+
     std::unique_ptr<AstNode<T>> root;
 
     std::unordered_map<std::string_view, std::function<T(T,T)>> binaryFuncs;
     std::unordered_map<std::string_view, std::function<T(T)>> unaryFuncs;
     std::unordered_map<std::string, T> variables;
 };
-
-#ifdef DEBUG
-#include <gtest/gtest.h>
-
-#include <utility>
-
-TEST(expression, add) {
-    Expression<double> e("3+2");
-    EXPECT_DOUBLE_EQ(e.evaluate({}), 5);
-}
-
-TEST(expression1, funcs) {
-    Expression<double> e("sin(1+x)");
-    EXPECT_DOUBLE_EQ(0, e.evaluate({{"x", -1}}));
-    EXPECT_DOUBLE_EQ(std::sin(1), e.evaluate({{"x", 0}}));
-}
-
-
-TEST(expression2, subtract) {
-    Expression<double> e("5-3");
-    EXPECT_DOUBLE_EQ(e.evaluate({}), 2);
-}
-
-TEST(expression3, multiply) {
-    Expression<double> e("4*3");
-    EXPECT_DOUBLE_EQ(e.evaluate({}), 12);
-}
-
-TEST(expression4, divide) {
-    Expression<double> e("10/2");
-    EXPECT_DOUBLE_EQ(e.evaluate({}), 5);
-}
-
-TEST(expression5, complex) {
-    Expression<double> e("3+2*4-6/2");
-    EXPECT_DOUBLE_EQ(e.evaluate({}), 8);
-}
-
-TEST(expression6, funcs) {
-    Expression<double> e("sin(1+x)");
-    EXPECT_DOUBLE_EQ(0, e.evaluate({{"x", -1}}));
-    EXPECT_DOUBLE_EQ(std::sin(1), e.evaluate({{"x", 0}}));
-}
-
-TEST(expression7, variables) {
-    Expression<double> e("x + y");
-    EXPECT_DOUBLE_EQ(e.evaluate({{"x", 3.5}, {"y", 2.5}}), 6.0);
-}
-
-/*
-TEST(expression8, invalid_expression) {
-    // This test checks if the class handles invalid expressions properly.
-    EXPECT_THROW(Expression<double>("2+"), std::runtime_error);
-}
-*/
-
-TEST(expression9, undefined_variable) {
-    // This test checks if the class handles undefined variables properly.
-    Expression<double> e("x + y");
-    EXPECT_THROW(e.evaluate({{"x", 3.5}}), std::out_of_range);
-}
-
-TEST(unaryTest, unaryMinus) {
-    Expression<double> e("-5+2");
-    EXPECT_DOUBLE_EQ(-3, e.evaluate({{}}));
-}
-
-#endif
-
 
 #endif //AST_EXPRESSION_H
