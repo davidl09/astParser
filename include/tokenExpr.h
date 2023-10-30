@@ -24,6 +24,16 @@ public:
     evalOrder(std::move(order))
     {}
 
+    std::vector<Token> getVariables() {
+        std::vector<Token> variables;
+        for(const auto& token : expression) {
+            if (token.isVariableValue()) {
+                variables.push_back(token);
+            }
+        }
+        return variables;
+    }
+
     auto& addImplMultiplication() {
 //adds explicit multiplication operators where they are usually implied by convention
         for (auto it = expression.begin(); it < expression.end() - 1; ++it) {

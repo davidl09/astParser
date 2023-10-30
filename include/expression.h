@@ -25,6 +25,7 @@ public:
     [[nodiscard]] virtual T evaluate() const = 0;
     [[nodiscard]] virtual T evalThreadSafe(const std::unordered_map<std::string, T>& map) const = 0;
     [[nodiscard]] virtual std::unique_ptr<AstNode<T>> clone() const = 0;
+    [[nodiscard]] virtual bool validateNode() const = 0;
 };
 
 
@@ -60,6 +61,10 @@ public:
     [[nodiscard]] T evalThreadSafe(const std::unordered_map<std::string, T>& map) const final {
         return value;
     }
+
+    [[nodiscard]] bool validateNode() const {
+        return true;
+    }
 private:
     T value;
 };
@@ -93,6 +98,16 @@ public:
         return map.at(name);
     }
 
+    [[nodiscard]] bool validateNode() const {
+        try {
+            variables.at(name);
+        }
+        catch (std::out_of_range& e) {
+            std::cerr << "Missing variable value: " << name << "\n";
+            return false;
+        }
+        return true;
+    }
 private:
     std::string name;
     std::unordered_map<std::string, T>& variables;
@@ -128,6 +143,9 @@ public:
         return this->eval(child->evalThreadSafe(map));
     }
 
+    [[nodiscard]] bool validateNode() const {
+        return child->validateNode();
+    }
 private:
     std::function<T(T)> eval;
     std::unique_ptr<AstNode<T>> child;
@@ -162,6 +180,9 @@ public:
         return this->eval(leftChild->evalThreadSafe(map), rightChild->evalThreadSafe(map));
     }
 
+    [[nodiscard]] bool validateNode() const {
+        return leftChild->validateNode() && rightChild->validateNode();
+    }
 private:
     std::function<T(const T&, const T&)> eval;
     std::unique_ptr<AstNode<T>> leftChild, rightChild;
@@ -172,7 +193,8 @@ private:
 template<FloatingPoint T>
 class Expression {
 public:
-    explicit Expression(const std::string &expression) : root(nullptr),
+    explicit Expression(const std::string &expression)
+    : isValid(false), root(nullptr),
 
     binaryFuncs({
         {"+", [](const T &lhs, const T &rhs) -> T { return lhs + rhs; }},
@@ -203,24 +225,43 @@ public:
         {"-",    [](const T &arg) -> T { return -arg; }},
     })
     {
-        init(expression);
+        checkAndInit(expression);
     }
 
     Expression(const Expression& old)
-    : root(old.root->clone()), binaryFuncs(old.binaryFuncs), unaryFuncs(old.unaryFuncs), variables(old.variables)
+    : isValid(old.isValid), root(old.root->clone()), binaryFuncs(old.binaryFuncs), unaryFuncs(old.unaryFuncs), variables(old.variables)
     {}
 
-    T evaluate(std::unordered_map<std::string, T> vars) {
+    Expression(Expression&& old) noexcept
+    : isValid(old.isValid), root(std::move(old.root)), binaryFuncs(std::move(old.binaryFuncs)), unaryFuncs(std::move(old.unaryFuncs)), variables(std::move(old.variables))
+    {
+        old.isValid = false;
+    }
+
+    Expression()
+    : isValid(false), root(nullptr)
+    {}
+
+    T evaluate(const std::unordered_map<std::string, T>& vars) {
         variables = vars;
+        if (!isValid) throw std::invalid_argument("Tried to evaluate invalid expression");
         return root->evaluate();
     }
 
-    const auto &getBinaryFunc(std::string_view name) {
+    [[nodiscard]] bool isValidExpr() const {
+        return isValid;
+    }
+
+    const auto &getBinaryFunc(std::string_view name) const {
         return binaryFuncs.at(name);
     }
 
-    const auto &getUnaryFunc(std::string_view name) {
+    const auto &getUnaryFunc(std::string_view name) const {
         return unaryFuncs.at(name);
+    }
+
+    const auto& getVariables() const {
+        return variables;
     }
 
     void addFunction(std::string_view name, std::function<T(T, T)> func) {
@@ -231,11 +272,11 @@ public:
         unaryFuncs[name] = func;
     }
 
-    const auto& getUnaryFuncs() {
+    const auto& getUnaryFuncs() const {
         return unaryFuncs;
     }
 
-    const auto& getBinaryFuncs() {
+    const auto& getBinaryFuncs() const {
         return binaryFuncs;
     }
 
@@ -243,32 +284,24 @@ public:
     friend std::istream& operator>>(std::istream& in, Expression<T>& e) {
         std::string input;
         std::getline(std::cin, input);
-        e.init(input);
+        e.checkAndInit(input);
         return in;
     }
 
-    std::unordered_map<std::string, T> getEmptyVars() {
-
-    }
-
-    bool checkAndInit(const std::string& expression, std::unordered_map<std::string, T> vars = {{}}) {
+    void checkAndInit(const std::string& expression, std::unordered_map<std::string, T> vars = {{}}) {
         try {
             init(expression);
         }
         catch (std::invalid_argument& e) {
             std::cerr << "Invalid Expression: " << e.what() << "\n";
-            return false;
+            invalidate();
+            return;
         }
+        isValid = root->validateNode();
 
-        try {
-            evaluate(vars);
+        if (!isValid) {
+            invalidate();
         }
-        catch (std::exception& e) {
-            std::cerr << "Evaluation error: " << e.what() << "\n";
-            return false;
-        }
-
-        return true;
     }
 
 private:
@@ -278,6 +311,9 @@ private:
         if (!tokenizer.isValidCharExpr()) throw std::invalid_argument("Invalid expression");
 
         TokenExpression tokenExpression{tokenizer.tokenize()};
+        auto tempVars = tokenExpression.getVariables();
+        std::ranges::for_each(tempVars, [&](const Token& t){variables[t.getStr()];});
+
         auto input = tokenExpression.setUnaryMinFlags().addImplMultiplication().getPostfixExpression();
 
         std::vector<std::unique_ptr<AstNode<T>>> nodeStack;
@@ -315,7 +351,18 @@ private:
         }
 
         root = std::move(nodeStack.front());
-    } 
+
+        if (root == nullptr) {
+            throw std::invalid_argument("Malformed expression, could not generate parse tree");
+        }
+    }
+
+    void invalidate() {
+        isValid = false;
+        root.reset(nullptr);
+    }
+
+    bool isValid;
 
     std::unique_ptr<AstNode<T>> root;
 

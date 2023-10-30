@@ -4,7 +4,7 @@
 #include <complex>
 
 int main() {
-    Expression<std::complex<double>> expr("0");
+    Expression<std::complex<double>> expr;
     while (true) {
         std::cout << "Enter an expression \n";
         std::cin >> expr;
