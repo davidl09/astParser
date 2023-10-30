@@ -335,6 +335,27 @@ public:
     void checkInitWithExcept(const std::string& expression, std::unordered_map<std::string, T> vars = {{}}) {
         init(expression);
     }
+/*
+
+    auto asFunction() const {
+        if (!isValid) throw std::runtime_error("Cannot create function from invalid expression");
+
+        return [*this](const std::unordered_map<std::string, T>& vars = {{}}){
+            Expression<T> copy(*this);
+            return copy.evaluate(vars);
+        };
+    }
+*/
+
+    auto asUnaryFunc() const {
+        if (!isValid) throw std::runtime_error("Cannot create unary function from invalid expression");
+        if (getVariables().size() != 1) throw std::runtime_error("Cannot create unary function from expression containing" + std::to_string(getVariables().size()) + "variables");
+        return [*this](T value){
+            Expression<T> retFunc(std::copy(*this));
+            *retFunc.variables.begin() = value;
+            return retFunc.evaluate();
+        };
+    }
 
 private:
 

@@ -328,6 +328,17 @@ TEST(validity, emptyExpr) {
     ASSERT_NO_THROW(e.evaluate());
 }
 
+TEST(asFunction, scope) {
+    //create an object out of test scope to test capture by value of Expression::asFunction
+    auto l = [](){
+        Expression<double> e("3+4*7");
+        return e.asFunction();
+    };
+
+    EXPECT_NO_FATAL_FAILURE(l()());
+    EXPECT_NO_THROW(l()());
+    EXPECT_TRUE(l()() == 31);
+}
 
 int main() {
     ::testing::InitGoogleTest();
