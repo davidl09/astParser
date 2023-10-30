@@ -93,12 +93,12 @@ public:
 
     [[nodiscard]] constexpr
     bool isLeftBracket() const {
-        return value == "(" && type == TokenType::BracketType;
+        return value[0] == '(' && type == TokenType::BracketType;
     }
 
     [[nodiscard]] constexpr
     bool isRightBracket() const {
-        return value == ")" && type == TokenType::BracketType;
+        return value[0] == ')' && type == TokenType::BracketType;
     }
 
     [[nodiscard]] constexpr
@@ -108,7 +108,7 @@ public:
 
     [[nodiscard]] constexpr
     bool isAnyMinus() const {
-        return getStr() == "-";
+        return getStr()[0] == '-';
     }
 
     [[nodiscard]] constexpr

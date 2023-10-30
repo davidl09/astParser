@@ -27,7 +27,9 @@ elseif(${CMAKE_BUILD_TYPE} STREQUAL "Release")
     add_compile_definitions("RELEASE")
 endif ()
 
+if(${CMAKE_BUILD_PYMODULE})
+    message("Building Python Module PyParser")
+    add_subdirectory(extern)
+endif ()
+
 add_subdirectory(src)
-
-target_link_libraries(ast PUBLIC tbb)
-
