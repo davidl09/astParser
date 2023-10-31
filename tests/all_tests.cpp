@@ -328,11 +328,11 @@ TEST(validity, emptyExpr) {
     ASSERT_NO_THROW(e.evaluate());
 }
 
-TEST(asFunction, scope) {
+TEST(asExpressionLambda, scope) {
     //create an object out of test scope to test capture by value of Expression::asFunction
     auto l = [](){
         Expression<double> e("3+4*7");
-        return e.asFunction();
+        return e.asExpressionLambda();
     };
 
     EXPECT_NO_FATAL_FAILURE(l()());

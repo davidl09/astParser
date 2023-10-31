@@ -29,7 +29,8 @@ endif ()
 
 if(${CMAKE_BUILD_PYMODULE})
     message("Building Python Module PyParser")
+    add_compile_definitions("BUILD_PYMODULE")
     add_subdirectory(extern)
-endif ()
-
+elseif ()
 add_subdirectory(src)
+endif()

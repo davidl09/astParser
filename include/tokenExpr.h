@@ -5,7 +5,6 @@
 #ifndef AST_TOKENEXPR_H
 #define AST_TOKENEXPR_H
 
-#include "token.h"
 #include "tokenizer.h"
 
 class TokenExpression {
