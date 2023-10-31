@@ -80,7 +80,7 @@ public:
     }
 
     T evaluate() {
-        return evaluate();
+        return evaluate({{}});
     }
 
     [[nodiscard]] bool isValidExpr() const {

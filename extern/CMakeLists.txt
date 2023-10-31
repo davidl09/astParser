@@ -1,6 +1,6 @@
 add_subdirectory(pybind11)
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY python)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "python")
 
 pybind11_add_module(pyparser PyParser.cpp)
 

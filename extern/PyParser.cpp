@@ -20,6 +20,8 @@ private:
 };
 */
 
+template class Expression<double>;
+
 PYBIND11_MODULE(pyparser, m) {
     py::class_<Expression<double>>(m, "Expression")
             .def(py::init<const std::string&>())

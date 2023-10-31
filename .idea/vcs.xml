@@ -3,5 +3,6 @@
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/extern/pybind11" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/extern/pybind11/build/_deps/eigen-src" vcs="Git" />
   </component>
 </project>
