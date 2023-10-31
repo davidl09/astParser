@@ -63,15 +63,21 @@ public:
         isValid = true;
     }
 
-    T evaluate(std::unordered_map<std::string, T> vars) {
+    T evaluate(const std::unordered_map<std::string, T>& vars) {
         //insert provided variables into expression's var object
         try {
             std::ranges::for_each(variables, [&](auto& keyVal) {
-                keyVal.second = vars.at(keyVal.first);
+                try {
+                    keyVal.second = vars.at(keyVal.first);
+                }
+                catch(std::out_of_range& r) {
+                    throw std::invalid_argument(keyVal.first);
+                }
             });
         }
         catch (std::exception& e) {
-            throw std::invalid_argument("Unspecified variable value");
+            throw std::invalid_argument(std::string{"Unspecified variable value: "} + e.what());
+            //each variable in the expression must have a value provided to it by the map
         }
 
 
@@ -131,7 +137,8 @@ public:
         return *this;
     }
 
-    void checkAndInit(const std::string& expression, std::unordered_map<std::string, T> vars = {{}}) noexcept {
+
+    void checkAndInit(const std::string& expression) noexcept {
         //checks validity of expression and catches exceptions -> return invalidated (unusable expression) if something goes wrong
 
         try {
@@ -155,7 +162,8 @@ public:
         }
     }
 
-    void checkInitWithExcept(const std::string& expression, std::unordered_map<std::string, T> vars = {{}}) {
+
+    void checkInitWithExcept(const std::string& expression) {
         init(expression);
     }
 

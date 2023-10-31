@@ -97,9 +97,6 @@ public:
             variables.at(name);
         }
         catch (std::exception& e) {
-#ifdef DEBUG
-            std::cerr << "Missing variable value: " << name << "\n";
-#endif
             return false;
         }
         return true;
