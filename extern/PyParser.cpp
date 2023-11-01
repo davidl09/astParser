@@ -5,21 +5,6 @@
 
 namespace py = pybind11;
 
-/*
-class doubleExpression {
-public:
-    explicit doubleExpression(const std::string &e)
-            : expr(e) {}
-
-    double evaluate() {
-        return expr.evaluate();
-    }
-
-private:
-    Expression<double> expr;
-};
-*/
-
 template class Expression<double>;
 
 PYBIND11_MODULE(PyParser, m) {

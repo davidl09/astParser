@@ -125,8 +125,12 @@ private:
                 operatorStack.pop();
             }
 
-            if(!operatorStack.top().isLeftBracket()) throw std::invalid_argument("Expected '('");
+            if (!operatorStack.top().isLeftBracket()) throw std::invalid_argument("Expected '('");
             operatorStack.pop();
+            if (operatorStack.top().isUnaryOp()) {
+                output.emplace_back(operatorStack.top());
+                operatorStack.pop();
+            }
             inputStack.pop();
             //error if the popped value is not '('
         }
@@ -154,7 +158,9 @@ private:
             operatorStack.push(std::move(inputStack.top()));
             inputStack.pop();
         }
+#ifdef DEBUG
         else throw std::invalid_argument{"Called unary func handler on invalid token type"};
+#endif
     }
 
 

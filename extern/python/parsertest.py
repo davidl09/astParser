@@ -4,13 +4,19 @@ import math
 from numpy import arange
 import time
 
-f = PyParser.Expression("sin(x)*e^x")
+f = PyParser.Expression("-sin(x)*exp(0.05x)")
 
 data = []
 
-for i in arange(-math.pi, math.pi, 0.001):
+width = 100
+
+expression = PyParser.Expression()
+expression.init("4+2/8")
+print(f"4+2/8 = {expression.eval()}")
+
+for i in arange(-width, width, 0.001):
     data.append(f.eval({"x": i, "e": math.e}))
 
 
-p = pyplot.plot(arange(-math.pi, math.pi, 0.001), data)
+p = pyplot.plot(arange(-width, width, 0.001), data)
 pyplot.show()

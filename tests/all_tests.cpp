@@ -340,6 +340,12 @@ TEST(asExpressionLambda, scope) {
     EXPECT_TRUE(l()() == 31);
 }
 
+TEST(funcOrder, e_sin_x) {
+    Expression<double> e("sin(x)*exp(x)");
+    ASSERT_DOUBLE_EQ(std::sin(1.0) * std::exp(1.0),
+                     e.evaluate({{"x", 1.0}}));
+}
+
 int main() {
     ::testing::InitGoogleTest();
     return RUN_ALL_TESTS();

@@ -1,11 +1,9 @@
 #include <iostream>
-#include "tokenExpr.h"
 #include "expression.h"
 #include <complex>
 
 int main() {
     Expression<std::complex<double>> expr;
-    Expression<std::complex<double>> x_2_1("x^2+1");
 
     //expr.addFunction("f", x_2_1.asUnaryFunc());
 
