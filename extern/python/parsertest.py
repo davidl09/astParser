@@ -4,13 +4,13 @@ import math
 from numpy import arange
 import time
 
-f = PyParser.Expression("x^2+3x^3-4x-6+cos(x)")
+f = PyParser.Expression("sin(x)*e^x")
 
 data = []
 
 for i in arange(-math.pi, math.pi, 0.001):
-    data.append(f.eval({"x": i}))
+    data.append(f.eval({"x": i, "e": math.e}))
 
 
-p = pyplot.plot(data)
-pyplot
+p = pyplot.plot(arange(-math.pi, math.pi, 0.001), data)
+pyplot.show()
