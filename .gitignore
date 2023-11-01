@@ -5,3 +5,4 @@ cmake-build-pymodule/
 cmake-build-pymodule-debug/
 cmake-build-relwithdebinfo/
 build/
+**.so
