@@ -40,5 +40,5 @@ jobs:
       run: dir && ls -a --recursive | grep allTests
 
     - name: Test
-      run: /home/runner/work/github_actions_gtest_example/github_actions_gtest_example/build/test/github_actions_gtest_example.test
+      run: allTests
 
