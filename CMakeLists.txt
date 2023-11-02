@@ -30,7 +30,7 @@ if(${CMAKE_BUILD_PYMODULE})
     add_subdirectory(extern)
 endif()
 
-if(${CMAKE_RUN_GTEST}) 
+if(${CMAKE_RUN_GTEST})
     add_subdirectory(tests)
 endif()
 

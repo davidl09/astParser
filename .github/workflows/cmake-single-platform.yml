@@ -40,5 +40,5 @@ jobs:
       run: dir && ls -a --recursive | grep allTests
 
     - name: Test
-      run: allTests
+      run: ./allTests
 
