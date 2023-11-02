@@ -51,11 +51,12 @@ public:
     [[nodiscard]]
     bool isValidCharExpr() {
         return std::all_of(expression.begin(), expression.end(), [&](const auto& i) -> bool {
+            auto index = std::string::const_iterator{expression.begin()} + (&i - &expression[0]);
             return
-                    isOperator(std::string::const_iterator{&i}) ||
-                    isBracket(std::string::const_iterator{&i}) ||
-                    isValue(std::string::const_iterator{&i}) ||
-                    isFuncCall(std::string::const_iterator{&i}) ||
+                    isOperator(index) ||
+                    isBracket(index) ||
+                    isValue(index) ||
+                    isFuncCall(index) ||
                     i == ' ';
         });
     }
