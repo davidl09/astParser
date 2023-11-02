@@ -165,6 +165,7 @@ public:
 
     void checkInitWithExcept(const std::string& expression) {
         init(expression);
+        isValid = root->validateNode();
     }
 
     auto asExpressionLambda() const {
@@ -261,6 +262,7 @@ private:
         if (root == nullptr) {
             throw std::invalid_argument("Malformed expression, could not generate parse tree");
         }
+
     }
 
     void invalidate() {
