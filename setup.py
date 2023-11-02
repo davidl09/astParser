@@ -10,7 +10,7 @@ extension_module = Extension(
 
 setup(
     name='mathfuncs-parse',
-    version='1.0.1',
+    version='1.0.2',
     description='A small module for parsing and evaluating expressions of any number of variables',
     ext_modules=[extension_module],
 )
