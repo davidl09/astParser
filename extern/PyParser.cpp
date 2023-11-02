@@ -1,5 +1,6 @@
 #include "pybind11/pybind11.h"
 #include "pybind11/stl.h"
+#include "pybind11/functional.h"
 
 #include "expression.h"
 
@@ -15,5 +16,6 @@ PYBIND11_MODULE(mathfuncs_parse, m) {
             .def("valid", &Expression<double>::isValidExpr)
             .def("eval", py::overload_cast<const std::unordered_map<std::string, double>&>(&Expression<double>::evaluate))
             .def("eval", py::overload_cast<>(&Expression<double>::evaluate))
-            .def("vars", &Expression<double>::getVariables);
+            .def("vars", &Expression<double>::getVariables)
+            .def("add_func", py::overload_cast<const std::string&, std::function<double(double)>>(&Expression<double>::addFunction));
 }

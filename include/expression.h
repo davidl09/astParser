@@ -105,11 +105,11 @@ public:
         return variables;
     }
 
-    void addFunction(std::string_view name, std::function<T(T, T)> func) {
+    void addFunction(const std::string& name, std::function<T(T, T)> func) {
         binaryFuncs[name] = func;
     }
 
-    void addFunction(std::string_view name, std::function<T(T)> func) {
+    void addFunction(const std::string& name, std::function<T(T)> func) {
         unaryFuncs[name] = func;
     }
 
