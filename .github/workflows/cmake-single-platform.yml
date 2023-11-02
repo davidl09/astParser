@@ -37,7 +37,7 @@ jobs:
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
 
     - name: Check test dir
-      run: dir && ls -a --recursive | grep test
+      run: dir && ls -a --recursive | grep allTests
 
     - name: Test
       run: /home/runner/work/github_actions_gtest_example/github_actions_gtest_example/build/test/github_actions_gtest_example.test
