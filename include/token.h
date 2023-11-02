@@ -71,17 +71,17 @@ public:
         return type == TokenType::ValueType;
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]]
     bool isLiteralValue() const {
         return std::all_of(value.begin(), value.end(), [](const auto& c){return (c >= '0' && c <= '9') || c == '.';}) && isValue();
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]]
     bool isVariableValue() const {
         return std::all_of(value.begin(), value.end(), [](const auto& c){return std::isalpha(c);}) && isValue();
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]]
     bool isValidToken() const {
         return isValue() || isUnaryOp() || isBinaryOp() || isBracket();
     }
@@ -136,7 +136,7 @@ public:
         return value;
     }
 
-    constexpr
+
     friend bool operator==(const Token& lhs, const Token& rhs) {
         return
         lhs.type == rhs.type

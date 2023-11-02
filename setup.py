@@ -11,5 +11,6 @@ extension_module = Extension(
 setup(
     name='PyParser',
     version='1.0',
+    description='A small module for parsing and evaluating expressions of any number of variables',
     ext_modules=[extension_module],
 )
