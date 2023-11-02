@@ -41,7 +41,7 @@ public:
 
     explicit Token(std::string val, Token::TokenType t) : value(std::move(val)), type(t) {
 
-        if(!std::ranges::all_of(value, [](const auto& c) -> bool {
+        if(!std::all_of(value.begin(), value.end(), [](const auto& c) -> bool {
             return std::isalnum(c) || std::string_view{"().+-*/^"}.find(c) != std::string::npos;
         })) //if invalid character detected
             throw std::invalid_argument("Tried creating Token with illegal character");
@@ -73,12 +73,12 @@ public:
 
     [[nodiscard]] constexpr
     bool isLiteralValue() const {
-        return std::ranges::all_of(value, [](const auto& c){return (c >= '0' && c <= '9') || c == '.';}) && isValue();
+        return std::all_of(value.begin(), value.end(), [](const auto& c){return (c >= '0' && c <= '9') || c == '.';}) && isValue();
     }
 
     [[nodiscard]] constexpr
     bool isVariableValue() const {
-        return std::ranges::all_of(value, [](const auto& c){return std::isalpha(c);}) && isValue();
+        return std::all_of(value.begin(), value.end(), [](const auto& c){return std::isalpha(c);}) && isValue();
     }
 
     [[nodiscard]] constexpr

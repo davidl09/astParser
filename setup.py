@@ -5,7 +5,7 @@ extension_module = Extension(
     name='PyParser',
     sources=['extern/PyParser.cpp'],  # Add other source files if necessary
     include_dirs=['extern/pybind11/include', 'include'],
-    extra_compile_args=['-std=c++20', '-O3'],  # Adjust the C++ standard flag as needed
+    extra_compile_args=['-std=c++20', '-O3' '-Wnone'],  # Adjust the C++ standard flag as needed
 )
 
 setup(

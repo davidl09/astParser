@@ -50,7 +50,7 @@ public:
 
     [[nodiscard]]
     bool isValidCharExpr() {
-        return std::ranges::all_of(expression, [&](const auto& i) -> bool {
+        return std::all_of(expression.begin(), expression.end(), [&](const auto& i) -> bool {
             return
                     isOperator(std::string::const_iterator{&i}) ||
                     isBracket(std::string::const_iterator{&i}) ||
@@ -79,7 +79,6 @@ private:
             }
             ++it;
         }
-
         return !count;
     }
 

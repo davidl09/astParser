@@ -66,7 +66,7 @@ public:
     T evaluate(const std::unordered_map<std::string, T>& vars) {
         //insert provided variables into expression's var object
         try {
-            std::ranges::for_each(variables, [&](auto& keyVal) {
+            std::for_each(variables.begin(), variables.end(), [&](auto& keyVal) {
                 try {
                     keyVal.second = vars.at(keyVal.first);
                 }
@@ -206,7 +206,8 @@ private:
 
         auto tempVars = tokenExpression.getVariables();
         variables.clear();
-        std::ranges::for_each(tempVars, [&](const Token& t){variables[t.getStr()];});
+
+        std::for_each(tempVars.begin(), tempVars.end(), [&](const Token& t){variables[t.getStr()];});
 
         auto postfixExpression = tokenExpression.setUnaryMinFlags().addImplMultiplication().getPostfixExpression();
         std::vector<std::unique_ptr<AstNode<T>>> nodeStack;
