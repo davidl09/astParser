@@ -5,8 +5,6 @@ set(CMAKE_CXX_STANDARD 20)
 
 set(AST_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/include")
 
-set(CMAKE_BUILD_PYMODULE ON)
-
 if("${CMAKE_BUILD_TYPE}" MATCHES "Debug")
 
     message("Debug Build")
@@ -14,7 +12,6 @@ if("${CMAKE_BUILD_TYPE}" MATCHES "Debug")
     add_compile_options("-g")
     add_compile_options("-O0")
     add_compile_options("-Wall" "-Werror")
-    add_subdirectory(tests)
     add_subdirectory(src)
 
 elseif(${CMAKE_BUILD_TYPE} MATCHES "Release")
@@ -32,3 +29,8 @@ if(${CMAKE_BUILD_PYMODULE})
     add_compile_definitions("BUILD_PYMODULE")
     add_subdirectory(extern)
 endif()
+
+if(${CMAKE_RUN_GTEST}) 
+    add_subdirectory(tests)
+endif()
+
