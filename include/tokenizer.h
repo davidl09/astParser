@@ -49,12 +49,12 @@ public:
     }
 
     [[nodiscard]]
-    constexpr bool isValidCharExpr() {
+    bool isValidCharExpr() {
         return std::ranges::all_of(expression, [&](const auto& i) -> bool {
             return
                     isOperator(std::string::const_iterator{&i}) ||
                     isBracket(std::string::const_iterator{&i}) ||
-                            isValue(std::string::const_iterator{&i}) ||
+                    isValue(std::string::const_iterator{&i}) ||
                     isFuncCall(std::string::const_iterator{&i}) ||
                     i == ' ';
         });
@@ -83,31 +83,31 @@ private:
         return !count;
     }
 
-    constexpr static bool isLeftBracket(std::string::const_iterator c) {
+    static bool isLeftBracket(std::string::const_iterator c) {
         return *c == '(';
     }
 
-    constexpr static bool isRightBracket(std::string::const_iterator c) {
+    static bool isRightBracket(std::string::const_iterator c) {
         return *c == ')';
     }
 
-    constexpr static bool isBracket(std::string::const_iterator c) {
+    static bool isBracket(std::string::const_iterator c) {
         return isLeftBracket(c) || isRightBracket(c);
     }
 
-    constexpr static bool isNumLiteral(std::string::const_iterator c) {
+    static bool isNumLiteral(std::string::const_iterator c) {
         return std::isdigit(*c) || *c == '.';
     }
 
-    constexpr bool isVariable(std::string::const_iterator c) {
+    bool isVariable(std::string::const_iterator c) {
         return !isFuncCall(c) && std::isalpha(*c);
     }
 
-    constexpr  bool isValue(std::string::const_iterator c) {
+     bool isValue(const std::string::const_iterator c) {
         return isVariable(c) || isNumLiteral(c);
     }
 
-    constexpr bool isFuncCall(std::string::const_iterator it) {
+    bool isFuncCall(std::string::const_iterator it) {
         while (it != expression.end() && std::isalpha(*it) && !isLeftBracket(it++));
 
         if(isLeftBracket(it))
@@ -116,7 +116,7 @@ private:
         return false;
     }
     
-    static constexpr bool isOperator(std::string::const_iterator it) {
+    static bool isOperator(std::string::const_iterator it) {
         return std::string{"+-*/^"}.find(*it) != std::string::npos;
     }
     
@@ -135,9 +135,6 @@ private:
     [[nodiscard]] Token handleVariable() {
 
         int count = 0;
-#ifdef DEBUG
-        assert(!this->isFuncCall(current));
-#endif
 
         while(current + count != expression.end() && std::isalpha(current[count])) {
             ++count;
