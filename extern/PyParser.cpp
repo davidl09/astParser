@@ -14,5 +14,6 @@ PYBIND11_MODULE(PyParser, m) {
             .def("init", &Expression<double>::checkInitWithExcept)
             .def("validate", &Expression<double>::isValidExpr)
             .def("eval", py::overload_cast<const std::unordered_map<std::string, double>&>(&Expression<double>::evaluate))
-            .def("eval", py::overload_cast<>(&Expression<double>::evaluate));
+            .def("eval", py::overload_cast<>(&Expression<double>::evaluate))
+            .def("vars", &Expression<double>::getVariables);
 }
