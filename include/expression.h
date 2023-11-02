@@ -187,12 +187,18 @@ public:
         };
     }*/
 
+    const std::string& getExpression() {
+        return self;
+    }
+
 private:
 
     void init(const std::string& expression) {
         if (expression.empty()) {
             throw std::invalid_argument("Cannot initialize empty expression");
         }
+
+        self = expression;
 
         Tokenizer tokenizer(expression);
         if (!tokenizer.isValidCharExpr()) throw std::invalid_argument("Invalid expression");
@@ -265,13 +271,11 @@ private:
 
     std::unique_ptr<AstNode<T>> root;
 
+    std::string self;
+
     std::unordered_map<std::string_view, std::function<T(T,T)>> binaryFuncs;
     std::unordered_map<std::string_view, std::function<T(T)>> unaryFuncs;
     std::unordered_map<std::string, T> variables;
 };
-
-#ifdef BUILD_PYMODULE
-extern template class Expression<double>;
-#endif
 
 #endif //AST_EXPRESSION_H

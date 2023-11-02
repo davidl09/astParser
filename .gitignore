@@ -5,4 +5,10 @@ cmake-build-pymodule/
 cmake-build-pymodule-debug/
 cmake-build-relwithdebinfo/
 build/
+dist/
+.idea/
+__pycache__/
+*.pyc
+*.egg-info
 **.so
+
