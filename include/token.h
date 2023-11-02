@@ -5,6 +5,8 @@
 #ifndef AST_TOKEN_H
 #define AST_TOKEN_H
 
+#include <vector>
+#include <numbers>
 #include <type_traits>
 #include <string>
 #include <memory>
