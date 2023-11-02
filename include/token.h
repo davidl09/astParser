@@ -86,17 +86,17 @@ public:
         return isValue() || isUnaryOp() || isBinaryOp() || isBracket();
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]]
     bool isBracket() const {
         return isLeftBracket() || isRightBracket();
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]]
     bool isLeftBracket() const {
         return value[0] == '(' && type == TokenType::BracketType;
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]] 
     bool isRightBracket() const {
         return value[0] == ')' && type == TokenType::BracketType;
     }
@@ -106,17 +106,17 @@ public:
         return type == TokenType::UnaryFuncType;
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]] 
     bool isAnyMinus() const {
         return getStr()[0] == '-';
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]] 
     bool isUnaryMinus() const {
         return isAnyMinus() && isUnaryOp();
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]] 
     bool isBinaryMinus() const {
         return isAnyMinus() && isBinaryOp();
     }
@@ -131,7 +131,7 @@ public:
         return (type & TokenType::RightAssociative);
     }
 
-    [[nodiscard]] constexpr
+    [[nodiscard]]
     const std::string& getStr() const {
         return value;
     }
