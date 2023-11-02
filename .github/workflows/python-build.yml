@@ -25,9 +25,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
       with: 
-        submodule: recursive
-    - name: Install PyBind11
-      run: sudo apt install pybind11-dev
+        submodules: recursive
     - name: Set up Python
       uses: actions/setup-python@v3
       with:
