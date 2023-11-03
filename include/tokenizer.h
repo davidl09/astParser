@@ -157,7 +157,6 @@ private:
     }
     
     [[nodiscard]] Token handleOperator() {
-        std::string_view result;
         return Token{{*current++}, Token::BinaryFuncType};
     }
     
