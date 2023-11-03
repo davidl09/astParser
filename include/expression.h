@@ -63,6 +63,13 @@ public:
         isValid = true;
     }
 
+    T evaluate(const std::unordered_map<std::string, T>& vars) const {
+
+        if (!isValid) throw std::invalid_argument("Tried to evaluate invalid expression");
+        return root->evalThreadSafe(vars);
+
+    }
+
     T evaluate(const std::unordered_map<std::string, T>& vars) {
         //insert provided variables into expression's var object
         try {
@@ -85,7 +92,7 @@ public:
         return root->evaluate();
     }
 
-    T evaluate() {
+    T evaluate() const {
         return evaluate({{}});
     }
 
@@ -145,9 +152,6 @@ public:
             init(expression);
         }
         catch (std::invalid_argument& e) {
-#ifdef DEBUG
-            std::cerr << "Invalid Expression: " << e.what() << "\n";
-#endif
             invalidate();
             return;
         }
@@ -232,6 +236,9 @@ private:
                     throw std::invalid_argument("Expected argument to unary operator '" + it->getStr() + "'");
                 }
 
+                if (!unaryFuncs.contains(it->getStr())) {
+                    throw std::invalid_argument("Unknown function encountered: " + it->getStr());
+                }
                 auto temp = std::make_unique<UnaryNode<T>>(unaryFuncs.at(it->getStr()), std::move(nodeStack.back()));
 
                 nodeStack.pop_back();
