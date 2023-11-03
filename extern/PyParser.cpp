@@ -15,7 +15,7 @@ PYBIND11_MODULE(mathfuncs_parse, m) {
             .def("init", &Expression<double>::checkInitWithExcept)
             .def("valid", &Expression<double>::isValidExpr)
             .def("eval", py::overload_cast<const std::unordered_map<std::string, double>&>(&Expression<double>::evaluate))
-            .def("eval", py::overload_cast<>(&Expression<double>::evaluate))
+            .def("eval", py::overload_cast<>(&Expression<double>::evaluate, py::const_))
             .def("vars", &Expression<double>::getVariables)
             .def("add_func", py::overload_cast<const std::string&, std::function<double(double)>>(&Expression<double>::addFunction))
             .def("avail_funcs", &Expression<double>::getUnaryFuncs);

@@ -1,11 +1,14 @@
 from setuptools import setup, Extension
 
+extra_compile_args = ["-std=c++20"]
+
 # Define the extension module
 extension_module = Extension(
     name='mathfuncs_parse',
     sources=['extern/PyParser.cpp'],
     include_dirs=['extern/pybind11/include', 'include'],
     extra_compile_args=['-std=c++20'],
+    language="c++",
 )
 
 setup(
