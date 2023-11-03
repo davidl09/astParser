@@ -346,6 +346,13 @@ TEST(funcOrder, e_sin_x) {
                      e.evaluate({{"x", 1.0}}));
 }
 
+TEST(isComplex, true) {
+    ASSERT_TRUE(is_complex_floating_point<std::complex<double>>::value);
+    ASSERT_FALSE(is_complex_floating_point<std::complex<int>>::value);
+    ASSERT_TRUE(is_complex_floating_point<std::complex<double>>::value);
+    ASSERT_FALSE(CplxOrRealFloat<std::complex<int>>);
+}
+
 int main() {
     ::testing::InitGoogleTest();
     return RUN_ALL_TESTS();

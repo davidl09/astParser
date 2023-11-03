@@ -8,7 +8,7 @@
 #include "tokenExpr.h"
 
 
-template<FloatingPoint T>
+template<CplxOrRealFloat T>
 class AstNode {
 public:
     AstNode() = default;
@@ -24,7 +24,7 @@ public:
 
 
 
-template<FloatingPoint T>
+template<CplxOrRealFloat T>
 class ValueNode : public AstNode<T> {
 
 public:
@@ -65,7 +65,7 @@ private:
 
 
 
-template<FloatingPoint T>
+template<CplxOrRealFloat T>
 class VariableNode : public AstNode<T> {
 public:
     explicit VariableNode(std::string name_, std::unordered_map<std::string, T>& varMap)
@@ -108,7 +108,7 @@ private:
 
 
 
-template<FloatingPoint T>
+template<CplxOrRealFloat T>
 class UnaryNode : public AstNode<T> {
 
 public:
@@ -146,7 +146,7 @@ private:
 
 
 
-template<FloatingPoint T>
+template<CplxOrRealFloat T>
 class BinaryNode : public AstNode<T> {
 public:
     BinaryNode(std::function<T(T,T)> func, std::unique_ptr<AstNode<T>>&& left, std::unique_ptr<AstNode<T>>&& right)

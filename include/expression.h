@@ -10,7 +10,7 @@
 
 #include "astnode.h"
 
-template<FloatingPoint T>
+template<CplxOrRealFloat T>
 class Expression {
 public:
     explicit Expression(const std::string &expression, bool noExcept = true)
@@ -42,6 +42,12 @@ public:
         {"-",    [](const T &arg) -> T { return -arg; }},
     })
     {
+        if constexpr (is_complex_floating_point<T>::value) {
+            unaryFuncs["arg"] = [](const T &arg) -> T {return std::arg(arg);};
+            unaryFuncs["real"] = [](const T &arg) -> T {return std::real(arg);};
+            unaryFuncs["imag"] = [](const T &arg) -> T {return std::imag(arg);};
+        }
+
         if (noExcept) {
             checkAndInit(expression);
         }

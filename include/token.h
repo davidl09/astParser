@@ -21,15 +21,13 @@
 #include <complex>
 
 template<typename T>
-struct is_complex : std::false_type {};
+struct is_complex_floating_point : std::false_type {};
 
 template<typename T>
-struct is_complex<std::complex<T>> : std::true_type {};
-
-
+struct is_complex_floating_point<std::complex<T>> : std::is_floating_point<T> {};
 
 template<typename T>
-concept FloatingPoint = std::is_floating_point_v<T> || is_complex<T>::value;
+concept CplxOrRealFloat = std::is_floating_point_v<T> || is_complex_floating_point<T>::value;
 
 class Token {
 public:
@@ -159,7 +157,7 @@ public:
     }
 
 
-    template<FloatingPoint T>
+    template<CplxOrRealFloat T>
     T convert_to () const
     {
         if(!isValue()) throw std::invalid_argument("Tried converting a non-value to a value");
