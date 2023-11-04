@@ -93,13 +93,7 @@ public:
     }
 
     [[nodiscard]] bool validateNode() const {
-        try {
-            variables.at(name);
-        }
-        catch (std::exception& e) {
-            return false;
-        }
-        return true;
+        return variables.contains(name);
     }
 private:
     std::string name;
