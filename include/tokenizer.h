@@ -127,9 +127,9 @@ private:
             count++;
         }
 
-        std::string_view result{current, current + count};
+        std::string result{current, current + count};
         current += count;
-        return Token{std::string{result}, Token::ValueType};
+        return Token{result, Token::ValueType};
     }
 
     [[nodiscard]] Token handleVariable() {
@@ -140,13 +140,13 @@ private:
             ++count;
         }
 
-        std::string_view result{current, current + count};
+        std::string result{current, current + count};
         current += count;
-        return Token{std::string{result}, Token::ValueType};
+        return Token{result, Token::ValueType};
     }
     
     [[nodiscard]] Token handleFuncCall()  {
-        std::string_view result;
+        std::string result;
         auto begin = current;
         
         while (current != expression.end() && std::isalpha(*current) && !isLeftBracket(current)) {
