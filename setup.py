@@ -1,19 +1,40 @@
 from setuptools import setup, Extension
+import subprocess
 
-extra_compile_args = ["-std=c++20"]
+compilers = {
+    "g++": "-std=c++20",
+    "clang++": "-std=c++20",
+    "icpc": "-std=c++20",
+    "msvc": "/std:c++20"
+}
+
+
+def get_compiler_args():
+    for compiler in compilers:
+        try:
+            result = subprocess.run([compiler,  "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, text=True)
+            return compilers[compiler]
+        except subprocess.CalledProcessError:
+            pass
+        except FileNotFoundError:
+            pass
+    return '-std=c++20'
+
+
+    
 
 # Define the extension module
 extension_module = Extension(
     name='mathfuncs_parse',
     sources=['extern/PyParser.cpp'],
     include_dirs=['extern/pybind11/include', 'include'],
-    extra_compile_args=['-std=c++20'],
+    extra_compile_args=[get_compiler_args()],
     language="c++",
 )
 
 setup(
     name='mathfuncs-parse',
-    version='1.1.2',
+    version='1.1.4',
     description='A small module for parsing and evaluating expressions of any number of variables',
     author='David Laeer',
     author_email='davidlaeer@gmail.com',
@@ -47,5 +68,12 @@ Available Member Functions:
 
 - ``avail_funcs() -> dict{str: <functionObj>}``
   Returns a dict of available functions which can be used in the current expression.
+
+Release Note (1.1.3):
+---------------------
+
+- Updated compiler flag detection for building source wheels on most platforms
+
+- Small bug fixes for greater cross-platform compatibility
 """,
 )

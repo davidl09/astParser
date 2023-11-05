@@ -9,15 +9,11 @@ if("${CMAKE_BUILD_TYPE}" MATCHES "Debug")
 
     message("Debug Build")
     add_compile_definitions("DEBUG")
-    add_compile_options("-g")
-    add_compile_options("-O0")
-    add_compile_options("-Wall" "-Werror")
     add_subdirectory(src)
 
 elseif(${CMAKE_BUILD_TYPE} MATCHES "Release")
 
     message("Release Build")
-    add_compile_options("-O3")
     add_compile_definitions("RELEASE")
     add_subdirectory(src)
 
