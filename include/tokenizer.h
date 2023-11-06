@@ -108,7 +108,7 @@ private:
     }
 
     bool isFuncCall(std::string::const_iterator it) {
-        while (it != expression.end() && std::isalpha(*it) && !isLeftBracket(it++));
+        while (it != expression.end() && std::isalpha(*it) && !isLeftBracket(it)) {++it;}
 
         if(isLeftBracket(it))
             return true;
