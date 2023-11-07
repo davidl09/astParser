@@ -10,6 +10,8 @@
 
 #include "astnode.h"
 
+#include "gamma.h"
+
 template<CplxOrRealFloat T>
 class Expression {
 public:
@@ -46,6 +48,7 @@ public:
             unaryFuncs["arg"] = [](const T &arg) -> T {return std::arg(arg);};
             unaryFuncs["real"] = [](const T &arg) -> T {return std::real(arg);};
             unaryFuncs["imag"] = [](const T &arg) -> T {return std::imag(arg);};
+            unaryFuncs["gamma"] = gamma_complex<T>;
         }
 
         if (noExcept) {
