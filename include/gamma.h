@@ -1,3 +1,6 @@
+#ifndef GAMMA_H
+#define GAMMA_H
+
 #include "token.h"
 
 
@@ -28,3 +31,5 @@ constexpr inline T gamma_complex(T z) {
 
     return result;
 }
+
+#endif

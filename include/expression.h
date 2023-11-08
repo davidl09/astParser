@@ -11,6 +11,7 @@
 #include "astnode.h"
 
 #include "gamma.h"
+#include "mandelbrot.h"
 
 template<CplxOrRealFloat T>
 class Expression {
@@ -45,6 +46,7 @@ public:
     })
     {
         if constexpr (is_complex_floating_point<T>::value) {
+            unaryFuncs["mandelbrot"] = mandelbrot<T>;
             unaryFuncs["arg"] = [](const T &arg) -> T {return std::arg(arg);};
             unaryFuncs["real"] = [](const T &arg) -> T {return std::real(arg);};
             unaryFuncs["imag"] = [](const T &arg) -> T {return std::imag(arg);};
