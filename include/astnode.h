@@ -20,6 +20,7 @@ public:
     [[nodiscard]] virtual T evalThreadSafe(const std::unordered_map<std::string, T>& map) const = 0;
     [[nodiscard]] virtual std::unique_ptr<AstNode<T>> clone() const = 0;
     [[nodiscard]] virtual bool validateNode() const = 0;
+    [[nodiscard]] virtual std::string asString() const = 0;
 };
 
 
@@ -59,6 +60,10 @@ public:
     [[nodiscard]] bool validateNode() const {
         return true;
     }
+
+    [[nodiscard]] std::string asString() const {
+        return std::move(std::to_string(this->value));
+    }
 private:
     T value;
 };
@@ -94,6 +99,10 @@ public:
 
     [[nodiscard]] bool validateNode() const {
         return variables.contains(name);
+    }
+
+    [[nodiscard]] std::string asString() const {
+        return name;
     }
 private:
     std::string name;
@@ -133,6 +142,10 @@ public:
     [[nodiscard]] bool validateNode() const {
         return child->validateNode();
     }
+
+    [[nodiscard]] std::string asString() const {
+        return "";
+    }
 private:
     std::function<T(T)> eval;
     std::unique_ptr<AstNode<T>> child;
@@ -169,6 +182,10 @@ public:
 
     [[nodiscard]] bool validateNode() const {
         return leftChild->validateNode() && rightChild->validateNode();
+    }
+
+    [[nodiscard]] std::string asString() const {
+        return "";
     }
 private:
     std::function<T(const T&, const T&)> eval;
