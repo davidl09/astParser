@@ -36,7 +36,7 @@ public:
     auto& addImplMultiplication() {
 //adds explicit multiplication operators where they are usually implied by convention
         for (auto it = expression.begin(); it < expression.end() - 1; ++it) {
-            if(it->isLiteralValue() && (it[1].isUnaryOp() || it[1].isVariableValue() || it[1].isLeftBracket())) {
+            if((it->isLiteralValue() || it->isRightBracket()) && (it[1].isUnaryOp() || it[1].isValue() || it[1].isLeftBracket())) {
                 auto distance = std::distance(expression.begin(), it);
                 expression.insert(it + 1, Token{"*", Token::BinaryFuncType});
                 it = expression.begin() + distance + 1;
