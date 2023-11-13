@@ -147,6 +147,7 @@ public:
         return in;
     }
 #endif
+
     Expression& operator=(const Expression& rhs) {
         isValid = rhs.isValid;
         root = rhs.root ? rhs.root->clone() : nullptr;
@@ -154,7 +155,6 @@ public:
         unaryFuncs = rhs.unaryFuncs;
         return *this;
     }
-
 
     void checkAndInit(const std::string& expression) noexcept {
         //checks validity of expression and catches exceptions -> return invalidated (unusable expression) if something goes wrong
@@ -193,17 +193,7 @@ public:
         };
     }
 
-/*    auto asUnaryFunc() const {
-        if (!isValid) throw std::runtime_error("Cannot create unary function from invalid expression");
-        if (getVariables().size() != 1) throw std::runtime_error("Cannot create unary function from expression containing" + std::to_string(getVariables().size()) + "variables");
-        return [*this](T value){
-            Expression<T> retFunc(*this);
-            retFunc.variables.begin()->second = value;
-            return retFunc.evaluate();
-        };
-    }*/
-
-    const std::string& getExpression() {
+    const std::string& string() {
         return self;
     }
 
@@ -250,7 +240,7 @@ private:
                 if (!unaryFuncs.contains(it->getStr())) {
                     throw std::invalid_argument("Unknown function encountered: " + it->getStr());
                 }
-                auto temp = std::make_unique<UnaryNode<T>>(unaryFuncs.at(it->getStr()), std::move(nodeStack.back()));
+                auto temp = std::make_unique<UnaryNode<T>>(it->getStr(), unaryFuncs, std::move(nodeStack.back()));
 
                 nodeStack.pop_back();
                 nodeStack.emplace_back(std::move(temp));
@@ -261,7 +251,7 @@ private:
                     throw std::invalid_argument("Expected argument(s) to binary operator '" + it->getStr() + "'");
                 }
 
-                auto temp = std::make_unique<BinaryNode<T>>(binaryFuncs.at(it->getStr()), std::move(nodeStack.rbegin()[1]), std::move(nodeStack.rbegin()[0]));
+                auto temp = std::make_unique<BinaryNode<T>>(it->getStr(), binaryFuncs, std::move(nodeStack.rbegin()[1]), std::move(nodeStack.rbegin()[0]));
 
                 nodeStack.pop_back();
                 nodeStack.pop_back();
@@ -281,6 +271,8 @@ private:
             throw std::invalid_argument("Malformed expression, could not generate parse tree");
         }
 
+        self = std::move(root->asString());
+
     }
 
     void invalidate() {
@@ -293,7 +285,6 @@ private:
     std::unique_ptr<AstNode<T>> root;
 
     std::string self;
-
     std::unordered_map<std::string_view, std::function<T(T,T)>> binaryFuncs;
     std::unordered_map<std::string_view, std::function<T(T)>> unaryFuncs;
     std::unordered_map<std::string, T> variables;

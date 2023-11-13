@@ -6,6 +6,7 @@
 #define AST_ASTNODE_H
 
 #include "tokenExpr.h"
+#include "expression.h"
 
 
 template<CplxOrRealFloat T>
@@ -62,7 +63,7 @@ public:
     }
 
     [[nodiscard]] std::string asString() const {
-        return std::move(std::to_string(this->value));
+        return std::move(std::to_string(std::real(this->value)));
     }
 private:
     T value;
@@ -115,6 +116,17 @@ template<CplxOrRealFloat T>
 class UnaryNode : public AstNode<T> {
 
 public:
+    UnaryNode(const std::string& name, const std::unordered_map<std::string_view, std::function<T(T)>>& functions, std::unique_ptr<AstNode<T>>&& child_)
+    : self(name)
+    {
+        if (!functions.contains(name))
+            throw std::invalid_argument("Tried initializing unary function node with invalid name");
+        eval = functions.at(self);
+
+        child = std::move(child_);
+    }
+
+    [[deprecated("Does not initialize 'name' field")]]
     UnaryNode(std::function<T(T)> func, std::unique_ptr<AstNode<T>>&& child_)
             : AstNode<T>(), eval(std::move(func)), child(std::move(child_))
     {}
@@ -144,9 +156,10 @@ public:
     }
 
     [[nodiscard]] std::string asString() const {
-        return "";
+        return std::move(std::string{self} + "(" + child->asString() + ")");
     }
 private:
+    std::string_view self;
     std::function<T(T)> eval;
     std::unique_ptr<AstNode<T>> child;
 };
@@ -156,6 +169,18 @@ private:
 template<CplxOrRealFloat T>
 class BinaryNode : public AstNode<T> {
 public:
+    BinaryNode(const std::string& name, const std::unordered_map<std::string_view, std::function<T(T, T)>>& functions, std::unique_ptr<AstNode<T>>&& leftChild_, std::unique_ptr<AstNode<T>>&& rightChild_)
+    : self(name)
+    {
+        if (!functions.contains(self))
+            throw std::invalid_argument("Tried initializing unary function node with invalid name");
+        eval = functions.at(self);
+
+        leftChild = std::move(leftChild_);
+        rightChild = std::move(rightChild_);
+    }
+
+    [[deprecated("Does not initialize 'name' field")]]
     BinaryNode(std::function<T(T,T)> func, std::unique_ptr<AstNode<T>>&& left, std::unique_ptr<AstNode<T>>&& right)
             : AstNode<T>(), eval(func), leftChild(std::move(left)), rightChild(std::move(right))
     {}
@@ -185,9 +210,10 @@ public:
     }
 
     [[nodiscard]] std::string asString() const {
-        return "";
+        return std::move(leftChild->asString() + std::string{self} + rightChild->asString());
     }
 private:
+    std::string_view self;
     std::function<T(const T&, const T&)> eval;
     std::unique_ptr<AstNode<T>> leftChild, rightChild;
 };

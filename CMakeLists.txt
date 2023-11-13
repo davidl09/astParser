@@ -30,3 +30,9 @@ if(${CMAKE_RUN_GTEST})
     add_subdirectory(tests)
 endif()
 
+if(MSVC)
+    add_compile_options(/W4 /WX)
+else()
+    add_compile_options(-Wall -Wextra -Wpedantic -Werror)
+endif()
+
