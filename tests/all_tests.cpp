@@ -369,6 +369,9 @@ TEST(asString, _1) {
 
 TEST(derivatives, binary) {
     Expression<double> e{"2x"};
+    auto d = e.derivative("x");
+    ASSERT_DOUBLE_EQ(d.evaluate({{"x", 2}}), 2);
+
 }
 
 int main() {
