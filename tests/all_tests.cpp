@@ -367,6 +367,10 @@ TEST(asString, _1) {
     ASSERT_TRUE(e.string() == f.string());
 }
 
+TEST(derivatives, binary) {
+    Expression<double> e{"2x"};
+}
+
 int main() {
     ::testing::InitGoogleTest();
     return RUN_ALL_TESTS();

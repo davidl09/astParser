@@ -8,13 +8,15 @@
 #include <stdexcept>
 #include <iostream>
 
-#include "astnode.h"
+#include "tokenExpr.h"
 
 #include "gamma.h"
 #include "mandelbrot.h"
 
 template<CplxOrRealFloat T>
 class Expression {
+private:
+    class AstNode;
 public:
     explicit Expression(const std::string &expression, bool noExcept = true)
     : isValid(false), root(nullptr),
@@ -216,19 +218,19 @@ private:
         std::for_each(tempVars.begin(), tempVars.end(), [&](const Token& t){variables[t.getStr()];});
 
         auto postfixExpression = tokenExpression.setUnaryMinFlags().addImplMultiplication().getPostfixExpression();
-        std::vector<std::unique_ptr<AstNode<T>>> nodeStack;
+        std::vector<std::unique_ptr<AstNode>> nodeStack;
 
 
         for (auto it = postfixExpression.begin(); it < postfixExpression.end(); ++it) {
             if (it->isVariableValue()) {
                 nodeStack.emplace_back(
-                        std::make_unique<VariableNode<T>>(it->getStr(), variables)
+                        std::make_unique<VariableNode>(it->getStr(), variables)
                         );
             }
 
             else if (it->isLiteralValue()) {
                 nodeStack.emplace_back(
-                        std::make_unique<ValueNode<T>>(it->convert_to<T>())
+                        std::make_unique<ValueNode>(it->convert_to<T>())
                         );
             }
 
@@ -240,7 +242,7 @@ private:
                 if (!unaryFuncs.contains(it->getStr())) {
                     throw std::invalid_argument("Unknown function encountered: " + it->getStr());
                 }
-                auto temp = std::make_unique<UnaryNode<T>>(it->getStr(), unaryFuncs, std::move(nodeStack.back()));
+                auto temp = std::make_unique<UnaryNode>(it->getStr(), unaryFuncs, std::move(nodeStack.back()));
 
                 nodeStack.pop_back();
                 nodeStack.emplace_back(std::move(temp));
@@ -251,7 +253,7 @@ private:
                     throw std::invalid_argument("Expected argument(s) to binary operator '" + it->getStr() + "'");
                 }
 
-                auto temp = std::make_unique<BinaryNode<T>>(it->getStr(), binaryFuncs, std::move(nodeStack.rbegin()[1]), std::move(nodeStack.rbegin()[0]));
+                auto temp = std::make_unique<BinaryNode>(it->getStr(), binaryFuncs, std::move(nodeStack.rbegin()[1]), std::move(nodeStack.rbegin()[0]));
 
                 nodeStack.pop_back();
                 nodeStack.pop_back();
@@ -282,12 +284,231 @@ private:
 
     bool isValid;
 
-    std::unique_ptr<AstNode<T>> root;
+    std::unique_ptr<AstNode> root;
 
     std::string self;
+
     std::unordered_map<std::string_view, std::function<T(T,T)>> binaryFuncs;
     std::unordered_map<std::string_view, std::function<T(T)>> unaryFuncs;
     std::unordered_map<std::string, T> variables;
+
+    class AstNode {
+    public:
+        AstNode() = default;
+        AstNode(AstNode&&) = default;
+        AstNode(const AstNode&) = default;
+        virtual ~AstNode() = default;
+
+        [[nodiscard]] virtual T evaluate() const = 0;
+        [[nodiscard]] virtual T evalThreadSafe(const std::unordered_map<std::string, T>& map) const = 0;
+        [[nodiscard]] virtual std::unique_ptr<AstNode> clone() const = 0;
+        [[nodiscard]] virtual bool validateNode() const = 0;
+        [[nodiscard]] virtual std::string asString() const = 0;
+        [[nodiscard]] virtual std::unique_ptr<AstNode> derivative(const std::string& wrt, const Expression<T>& parent)  = 0;
+    };
+
+    class ValueNode : public AstNode {
+
+    public:
+        explicit ValueNode(const Token& token)
+                : AstNode(), value(token.convert_to<T>())
+        {}
+
+        explicit ValueNode(T value)
+                : AstNode(), value(value)
+        {}
+
+        ValueNode(ValueNode&& old) noexcept
+                : AstNode(), value(std::move(old.value))
+        {}
+
+        ValueNode(const ValueNode& old)
+                : value(old.value)
+        {}
+
+        [[nodiscard]] std::unique_ptr<AstNode> clone() const final {
+            return std::move(std::make_unique<ValueNode>(this->value));
+        }
+
+        [[nodiscard]] T evaluate() const final {
+            return value;
+        }
+
+        [[nodiscard]] T evalThreadSafe(const std::unordered_map<std::string, T>& map) const final {
+            return value;
+        }
+
+        [[nodiscard]] bool validateNode() const {
+            return true;
+        }
+
+        [[nodiscard]] std::string asString() const {
+            return std::move(std::to_string(std::real(this->value)));
+        }
+
+        [[nodiscard]] std::unique_ptr<AstNode> derivative(const std::string& wrt, const Expression<T>& parent) {
+            return std::make_unique<ValueNode>(0);
+        }
+    private:
+        T value;
+    };
+    
+    class VariableNode : public AstNode {
+    public:
+        explicit VariableNode(std::string name_, std::unordered_map<std::string, T>& varMap)
+                : AstNode(), name(std::move(name_)), variables(varMap)
+        {}
+
+        VariableNode(VariableNode&& old) noexcept
+                : AstNode(), name(std::move(old.name)), variables(std::move(old.variables))
+        {}
+
+        VariableNode(const VariableNode& old)
+                : name(old.name), variables(old.variables)
+        {}
+
+        [[nodiscard]] std::unique_ptr<AstNode> clone() const final {
+            return std::move(std::make_unique<VariableNode>(name, variables));
+        }
+
+        [[nodiscard]] T evaluate() const final {
+            return variables.at(name);
+        }
+
+        [[nodiscard]] T evalThreadSafe(const std::unordered_map<std::string, T>& map) const final {
+            return map.at(name);
+        }
+
+        [[nodiscard]] bool validateNode() const {
+            return variables.contains(name);
+        }
+
+        [[nodiscard]] std::string asString() const {
+            return name;
+        }
+
+        [[nodiscard]] std::unique_ptr<AstNode> derivative(const std::string& wrt, const Expression<T>& parent) {
+            return std::make_unique<ValueNode>(name == wrt ? 1 : 0);
+        }
+
+    private:
+        std::string name;
+        std::unordered_map<std::string, T>& variables;
+    };
+
+    
+    class UnaryNode : public AstNode {
+
+    public:
+        UnaryNode(const std::string& name, const std::unordered_map<std::string_view, std::function<T(T)>>& functions, std::unique_ptr<AstNode>&& child_)
+                : self(name)
+        {
+            if (!functions.contains(name))
+                throw std::invalid_argument("Tried initializing unary function node with invalid name");
+            eval = functions.at(self);
+
+            child = std::move(child_);
+        }
+
+        [[deprecated("Does not initialize 'name' field")]]
+        UnaryNode(std::function<T(T)> func, std::unique_ptr<AstNode>&& child_)
+                : AstNode(), eval(std::move(func)), child(std::move(child_))
+        {}
+
+        UnaryNode(UnaryNode&& old) noexcept
+                : eval(std::move(old.eval)), child(std::move(old.child))
+        {}
+
+        UnaryNode(const UnaryNode& old) {
+            *this = old.clone();
+        }
+
+        [[nodiscard]] std::unique_ptr<AstNode> clone() const final {
+            return std::move(std::make_unique<UnaryNode>(std::function<T(T)>(eval), child->clone()));
+        }
+
+        [[nodiscard]] T evaluate() const final {
+            return this->eval(child->evaluate());
+        }
+
+        [[nodiscard]] T evalThreadSafe(const std::unordered_map<std::string, T>& map) const final {
+            return this->eval(child->evalThreadSafe(map));
+        }
+
+        [[nodiscard]] bool validateNode() const {
+            return child->validateNode();
+        }
+
+        [[nodiscard]] std::string asString() const {
+            return std::move(std::string{self} + "(" + child->asString() + ")");
+        }
+
+        [[nodiscard]] std::unique_ptr<AstNode> derivative(const std::string& wrt, const Expression<T>& parent) {
+            return std::make_unique<ValueNode>(0);
+        }
+
+    private:
+        std::string_view self;
+        std::function<T(T)> eval;
+        std::unique_ptr<AstNode> child;
+    };
+
+    
+    class BinaryNode : public AstNode {
+    public:
+        BinaryNode(const std::string& name, const std::unordered_map<std::string_view, std::function<T(T, T)>>& functions, std::unique_ptr<AstNode>&& leftChild_, std::unique_ptr<AstNode>&& rightChild_)
+                : self(name)
+        {
+            if (!functions.contains(self))
+                throw std::invalid_argument("Tried initializing unary function node with invalid name");
+            eval = functions.at(self);
+
+            leftChild = std::move(leftChild_);
+            rightChild = std::move(rightChild_);
+        }
+
+        [[deprecated("Does not initialize 'name' field")]]
+        BinaryNode(std::function<T(T,T)> func, std::unique_ptr<AstNode>&& left, std::unique_ptr<AstNode>&& right)
+                : AstNode(), eval(func), leftChild(std::move(left)), rightChild(std::move(right))
+        {}
+
+        BinaryNode(BinaryNode&& old) noexcept
+                : eval(old.func), leftChild(old.leftChild), rightChild(old.rightChild)
+        {}
+
+        BinaryNode(const BinaryNode& old) {
+            *this = old.clone();
+        }
+
+        [[nodiscard]] std::unique_ptr<AstNode> clone() const final {
+            return std::move(std::make_unique<BinaryNode>(std::function<T(T,T)>{eval}, std::move(leftChild->clone()), std::move(rightChild->clone())));
+        }
+
+        [[nodiscard]] T evaluate() const final {
+            return this->eval(leftChild->evaluate(), rightChild->evaluate());
+        }
+
+        [[nodiscard]] T evalThreadSafe(const std::unordered_map<std::string, T>& map) const final {
+            return this->eval(leftChild->evalThreadSafe(map), rightChild->evalThreadSafe(map));
+        }
+
+        [[nodiscard]] bool validateNode() const {
+            return leftChild->validateNode() && rightChild->validateNode();
+        }
+
+        [[nodiscard]] std::string asString() const {
+            return std::move(leftChild->asString() + std::string{self} + rightChild->asString());
+        }
+
+        [[nodiscard]] std::unique_ptr<AstNode> derivative(const std::string& wrt, const Expression<T>& parent) {
+            return std::make_unique<ValueNode>(0);
+        }
+    private:
+        std::string_view self;
+        std::function<T(const T&, const T&)> eval;
+        std::unique_ptr<AstNode> leftChild, rightChild;
+    };
+
 };
 
 #endif //AST_EXPRESSION_H
