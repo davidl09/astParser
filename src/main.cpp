@@ -5,7 +5,7 @@
 int main() {
     Expression<double> expr;
 
-    //expr.addFunction("f", x_2_1.asUnaryFunc());
+    /*
     while (true) {
         std::cout << "Enter an expression \n";
         try {
@@ -18,11 +18,13 @@ int main() {
             std::cout << "Error: " << e.what() << "\n";
         }
     }
-   /* while (true) {
+    */
+
+    while (true) {
         std::cout << "Enter an expression \n";
         std::cin >> expr;
         auto res = expr.derivative("x");
 
         std::cout << res.string() << "\n";
-    }*/
+    }
 }

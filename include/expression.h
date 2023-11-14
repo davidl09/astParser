@@ -89,7 +89,9 @@ public:
     Expression derivative(const std::string& wrt) {
         Expression result;
         result.root = this->root->derivative(wrt, result);
-        result.optimize(); //optimize is broken at the moment
+
+        result.optimize();
+
         result.updateStrRepr();
         return result;
     }
@@ -327,7 +329,7 @@ private:
         }
 
         self = std::move(root->asString());
-
+        optimize();
     }
 
     void invalidate() {
@@ -377,11 +379,18 @@ private:
         [[nodiscard]] virtual T evalThreadSafe(const std::unordered_map<std::string, T>& map) const = 0;
         [[nodiscard]] virtual std::unique_ptr<AstNode> clone() const = 0;
         [[nodiscard]] virtual bool validateNode() const = 0;
+        [[nodiscard]] virtual std::string selfId() const = 0;
         [[nodiscard]] virtual std::string asString() const = 0;
         [[nodiscard]] virtual std::unique_ptr<AstNode> derivative(const std::string& wrt, Expression& ctx) = 0;
         [[nodiscard]] virtual std::unique_ptr<AstNode> optimize() = 0;
         [[nodiscard]] virtual bool noVariableNodes() = 0;
+
         virtual bool swapVarWithSubTree(const std::unique_ptr<AstNode>& subtree, const std::string& toBeReplaced) = 0;
+
+
+        friend bool operator==(const std::unique_ptr<AstNode>& lhs, const std::unique_ptr<AstNode>& rhs) {
+            return lhs->asString() == rhs->asString();
+        }
     };
 
     class ValueNode : public AstNode {
@@ -417,6 +426,10 @@ private:
 
         [[nodiscard]] bool validateNode() const {
             return true;
+        }
+
+        [[nodiscard]] std::string selfId() const {
+            return asString();
         }
 
         [[nodiscard]] std::string asString() const {
@@ -474,8 +487,12 @@ private:
             return variables.contains(name);
         }
 
-        [[nodiscard]] std::string asString() const {
+        [[nodiscard]] std::string selfId() const {
             return name;
+        }
+
+        [[nodiscard]] std::string asString() const {
+            return selfId();
         }
 
         [[nodiscard]] std::unique_ptr<AstNode> derivative(const std::string& wrt, Expression& ctx) {
@@ -537,8 +554,12 @@ private:
             return child->validateNode();
         }
 
+        [[nodiscard]] std::string name() const {
+            return self;
+        }
+
         [[nodiscard]] std::string asString() const {
-            return std::string{self} + "(" + child->asString() + ")";
+            return self + "(" + child->asString() + ")";
         }
 
         [[nodiscard]] std::unique_ptr<AstNode> derivative(const std::string& wrt, Expression& ctx) {
@@ -620,8 +641,12 @@ private:
             return leftChild->validateNode() && rightChild->validateNode();
         }
 
+        [[nodiscard]] std::string name() const {
+            return self;
+        }
+
         [[nodiscard]] std::string asString() const {
-            return "(" + leftChild->asString() + ")" + std::string{self} + "(" + rightChild->asString() + ")";
+            return "(" + leftChild->asString() + ")" + self + "(" + rightChild->asString() + ")";
         }
 
         [[nodiscard]] std::unique_ptr<AstNode> derivative(const std::string& wrt, Expression& ctx) {
@@ -660,6 +685,21 @@ private:
 
         [[nodiscard]] std::unique_ptr<AstNode> optimize() {
             auto leftNoVar = leftChild->noVariableNodes(), rightNoVar = rightChild->noVariableNodes();
+
+            if (leftChild == rightChild) {
+                if (self == "+") {
+                    return std::make_unique<BinaryNode>("*", context, std::make_unique<ValueNode>(2), std::move(leftChild));
+                }
+                if (self == "-") {
+                    return std::make_unique<ValueNode>(0);
+                }
+                if (self == "*") {
+                    return std::make_unique<BinaryNode>("^", context, std::move(leftChild), std::make_unique<ValueNode>(2));
+                }
+                if (self == "/") {
+                    return std::make_unique<ValueNode>(1);
+                }
+            }
 
             if (!(leftNoVar || rightNoVar)) {
                 leftChild = leftChild->optimize();
@@ -730,7 +770,6 @@ private:
                     }
                 }
             }
-
             return std::make_unique<BinaryNode>(std::move(*this));
         }
 
