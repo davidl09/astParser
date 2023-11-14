@@ -420,8 +420,9 @@ private:
         }
 
         [[nodiscard]] std::string asString() const {
-            auto result = std::to_string(std::real(this->value));
-            return result.erase (result.find_last_not_of('0') + 1, std::string::npos);
+            std::stringstream s;
+            s << std::real(value);
+            return s.str();
         }
 
         [[nodiscard]] std::unique_ptr<AstNode> derivative(const std::string& wrt, Expression& ctx) {
