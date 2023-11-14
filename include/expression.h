@@ -425,7 +425,7 @@ private:
         [[nodiscard]] std::unique_ptr<AstNode> derivative(const std::string& wrt, Expression& ctx) {
             return std::make_unique<ValueNode>(0);
         }
-        
+
         bool optimize() {
             return true;
         };
@@ -436,7 +436,7 @@ private:
     private:
         T value;
     };
-    
+
     class VariableNode : public AstNode {
     public:
         explicit VariableNode(std::string name_, std::unordered_map<std::string, T>& varMap)
@@ -474,7 +474,7 @@ private:
         [[nodiscard]] std::unique_ptr<AstNode> derivative(const std::string& wrt, Expression& ctx) {
             return std::make_unique<ValueNode>(name == wrt ? 1 : 0);
         }
-        
+
         bool optimize() {
             return false;
         }
@@ -626,6 +626,19 @@ private:
                 auto denom = std::make_unique<BinaryNode>("^", ctx, rightChild->clone(), std::make_unique<ValueNode>(2));
 
                 return std::move(std::make_unique<BinaryNode>("/", ctx, std::move(numer), std::move(denom)));
+            }
+            else if (self == "^") {
+                //if h(x) = f(x)^g(x), then h'(x) =    h(x) * (g'(x) * ln(f(x)) + g(x) * f'(x) / f(x))
+                auto f = leftChild->clone();      //                                     ^^^^^C^^^^^^
+                auto fp = leftChild->derivative(wrt, ctx);//^^A^^^^^^^^^^^   ^^^^^^^^^^B^^^^^^^^^^
+                auto g = rightChild->clone();                //^^^^^^^^^^^^^^^^D^^^^^^^^^^^^^^^^^^^^^
+                auto gp = rightChild->derivative(wrt, ctx);
+                auto h = std::make_unique<BinaryNode>("^", ctx, f->clone(), g->clone());
+                auto C = std::make_unique<BinaryNode>("/", ctx, fp->clone(), f->clone());
+                auto B = std::make_unique<BinaryNode>("*", ctx, g->clone(), std::move(C)); //C is now invalid in this scope
+                auto A = std::make_unique<BinaryNode>("*", ctx, gp->clone(), std::make_unique<UnaryNode>("ln", ctx, f->clone()));
+                auto D = std::make_unique<BinaryNode>("+", ctx, std::move(A), std::move(B));
+                return std::make_unique<BinaryNode>("*", ctx, std::move(h), std::move(D));
             }
             else throw std::invalid_argument("Derivative for operator " + std::string{self} + " is not defined");
         }
