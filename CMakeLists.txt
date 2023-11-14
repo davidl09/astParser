@@ -6,6 +6,11 @@ set(CMAKE_CXX_STANDARD 20)
 set(AST_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/include")
 
 if("${CMAKE_BUILD_TYPE}" MATCHES "Debug")
+    if(MSVC)
+        add_compile_options(/W4 /WX)
+    else()
+        add_compile_options(-Wall -Wextra -Wpedantic)
+    endif()
 
     message("Debug Build")
     add_compile_definitions("DEBUG")
@@ -28,11 +33,5 @@ endif()
 
 if(${CMAKE_RUN_GTEST})
     add_subdirectory(tests)
-endif()
-
-if(MSVC)
-    add_compile_options(/W4 /WX)
-else()
-    add_compile_options(-Wall -Wextra -Wpedantic -Werror)
 endif()
 

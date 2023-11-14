@@ -356,13 +356,13 @@ TEST(isComplex, true) {
 TEST(implicitMult, bracket) {
     Expression<double> e("sin(x)cos(x)");
     ASSERT_TRUE(e.isValidExpr());
-    ASSERT_TRUE(e.string() == "sin(x)*cos(x)");
+    ASSERT_TRUE(e.string() == "(sin(x))*(cos(x))");
     ASSERT_DOUBLE_EQ(e.evaluate({{"x", 3.4}}), std::sin(3.4) * std::cos(3.4));
 }
 
 TEST(asString, _1) {
     Expression<double> e("sin(x)cos(x)");
-    ASSERT_TRUE(e.string() == "sin(x)*cos(x)");
+    ASSERT_TRUE(e.string() == "(sin(x))*(cos(x))");
     Expression<double> f(e.string());
     ASSERT_TRUE(e.string() == f.string());
 }

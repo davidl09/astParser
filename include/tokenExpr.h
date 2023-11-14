@@ -78,7 +78,7 @@ public:
             }
 
             else if (inputStack.top().isUnaryOp()) {
-                handleUnaryOp(output);
+                handleUnaryOp();
             }
 
             else if (inputStack.top().isBinaryOp()) {
@@ -153,7 +153,7 @@ private:
         inputStack.pop();
     }
 
-    void handleUnaryOp(std::vector<Token>& output) {
+    void handleUnaryOp() {
         if (inputStack.top().isUnaryOp()) {
             operatorStack.push(std::move(inputStack.top()));
             inputStack.pop();

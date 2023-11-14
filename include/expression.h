@@ -7,6 +7,7 @@
 
 #include <stdexcept>
 #include <iostream>
+#include <utility>
 
 #include "tokenExpr.h"
 
@@ -82,8 +83,17 @@ public:
 
     Expression derivative(const std::string& wrt) {
         Expression temp = *this;
-        temp.root = temp.root->derivative(wrt);
-        return std::move(temp);
+        temp.root = std::move(temp.root->derivative(wrt));
+        optimize();
+        temp.self = temp.root->asString();
+        return temp;
+    }
+
+    void optimize() {
+        if (root->optimize()) {
+            root = std::make_unique<ValueNode>(root->evaluate());
+            self = root->asString();
+        }
     }
 
     T evaluate(const std::unordered_map<std::string, T>& vars) const {
@@ -123,11 +133,11 @@ public:
         return isValid;
     }
 
-    const auto &getBinaryFunc(std::string_view name) const {
+    const auto &getBinaryFunc(const std::string& name) const {
         return binaryFuncs.at(name);
     }
 
-    const auto &getUnaryFunc(std::string_view name) const {
+    const auto &getUnaryFunc(const std::string& name) const {
         return unaryFuncs.at(name);
     }
 
@@ -199,34 +209,30 @@ public:
         if (!isValid) throw std::runtime_error("Cannot create function from invalid expression");
         if (!variables.empty()) throw std::runtime_error("Cannot create 0-variable expression from variable function");
 
-        return [*this](const std::unordered_map<std::string, T>& vars = {{}}){
-            Expression<T> copy(*this);
+        Expression<T> copy = *this;
+
+        return [copy](const std::unordered_map<std::string, T>& vars = {{}}){
             return copy.evaluate(vars);
         };
     }
 
-    const std::string& string() {
+    const std::string& string() const {
         return self;
     }
 
 private:
 
-    void init(const std::string& expression) {
+    static TokenExpression tokenizeExpression(const std::string& expression) {
         if (expression.empty()) {
             throw std::invalid_argument("Cannot initialize empty expression");
         }
 
-        self = expression;
-
         Tokenizer tokenizer(expression);
         if (!tokenizer.isValidCharExpr()) throw std::invalid_argument("Invalid expression");
-        TokenExpression tokenExpression{tokenizer.tokenize()};
+        return TokenExpression{tokenizer.tokenize()};
+    }
 
-        auto tempVars = tokenExpression.getVariables();
-        variables.clear();
-
-        std::for_each(tempVars.begin(), tempVars.end(), [&](const Token& t){variables[t.getStr()];});
-
+    static std::unique_ptr<AstNode> makeExprTree(TokenExpression tokenExpression, Expression& context) {
         auto postfixExpression = tokenExpression.setUnaryMinFlags().addImplMultiplication().getPostfixExpression();
         std::vector<std::unique_ptr<AstNode>> nodeStack;
 
@@ -234,14 +240,14 @@ private:
         for (auto it = postfixExpression.begin(); it < postfixExpression.end(); ++it) {
             if (it->isVariableValue()) {
                 nodeStack.emplace_back(
-                        std::make_unique<VariableNode>(it->getStr(), variables)
-                        );
+                        std::make_unique<VariableNode>(it->getStr(), context.variables)
+                );
             }
 
             else if (it->isLiteralValue()) {
                 nodeStack.emplace_back(
                         std::make_unique<ValueNode>(it->convert_to<T>())
-                        );
+                );
             }
 
             else if (it->isUnaryOp()) {
@@ -249,10 +255,10 @@ private:
                     throw std::invalid_argument("Expected argument to unary operator '" + it->getStr() + "'");
                 }
 
-                if (!unaryFuncs.contains(it->getStr())) {
+                if (!context.unaryFuncs.contains(it->getStr())) {
                     throw std::invalid_argument("Unknown function encountered: " + it->getStr());
                 }
-                auto temp = std::make_unique<UnaryNode>(it->getStr(), *this, std::move(nodeStack.back()));
+                auto temp = std::make_unique<UnaryNode>(it->getStr(), context, std::move(nodeStack.back()));
 
                 nodeStack.pop_back();
                 nodeStack.emplace_back(std::move(temp));
@@ -263,7 +269,7 @@ private:
                     throw std::invalid_argument("Expected argument(s) to binary operator '" + it->getStr() + "'");
                 }
 
-                auto temp = std::make_unique<BinaryNode>(it->getStr(), *this, std::move(nodeStack.rbegin()[1]), std::move(nodeStack.rbegin()[0]));
+                auto temp = std::make_unique<BinaryNode>(it->getStr(), context, std::move(nodeStack.rbegin()[1]), std::move(nodeStack.rbegin()[0]));
 
                 nodeStack.pop_back();
                 nodeStack.pop_back();
@@ -276,8 +282,22 @@ private:
             throw std::invalid_argument("Unbalanced equation");
         }
 
-        root = std::move(nodeStack.front());
-        nodeStack.pop_back();
+        return std::move(nodeStack.back());
+    }
+
+    void init(const std::string& expression) {
+
+        auto tokenExpression = tokenizeExpression(expression);
+
+        auto tempVars = tokenExpression.getVariables();
+        variables.clear();
+
+        std::for_each(tempVars.begin(), tempVars.end(), [&](const Token& t){variables[t.getStr()];});
+
+
+        root = makeExprTree(tokenExpression, *this);
+
+        self = root->asString();
 
         if (root == nullptr) {
             throw std::invalid_argument("Malformed expression, could not generate parse tree");
@@ -302,9 +322,20 @@ private:
     std::unordered_map<std::string_view, std::function<T(T)>> unaryFuncs;
     std::unordered_map<std::string, T> variables;
 
-    const std::unordered_map<std::string_view, std::string_view> simpleDerivatives {
-            {"sin", "cos"},
-            {"exp", "exp"}
+    const std::unordered_map<std::string_view, std::pair<std::string_view, std::string_view>> simpleDerivatives {
+            {"sin", {"sin(x)", "xp*cos(x)"}},
+            {"cos", {"cos(x)", "-xp*sin(x)"}},
+            {"exp", {"exp(x)", "xp*exp(x)"}},
+            {"tan", {"tan(x)", "xp*(1 + tan(x)*tan(x))"}},
+            {"log", {"log(x)", "xp/x"}},
+            {"csec", {"csec(x)", "-xp*csc(x)*cot(x)"}},
+            {"sec", {"sec(x)", "xp*sec(x)*tan(x)"}},
+            {"cot", {"cot(x)", "-xp*(1 + cot(x)*cot(x))"}},
+            {"asin", {"asin(x)", "xp/sqrt(1 - x*x)"}},
+            {"acos", {"acos(x)", "-xp/sqrt(1 - x*x)"}},
+            {"atan", {"atan(x)", "xp/(1 + x*x)"}},
+            {"ln", {"ln(x)", "xp/x"}},
+            {"log", {"log(x)", "xp/(x * ln(10))"}},
     };
 
     class AstNode {
@@ -319,7 +350,9 @@ private:
         [[nodiscard]] virtual std::unique_ptr<AstNode> clone() const = 0;
         [[nodiscard]] virtual bool validateNode() const = 0;
         [[nodiscard]] virtual std::string asString() const = 0;
-        [[nodiscard]] virtual std::unique_ptr<AstNode> derivative(const std::string& wrt)  = 0;
+        [[nodiscard]] virtual std::unique_ptr<AstNode> derivative(const std::string& wrt) = 0;
+        virtual bool optimize() = 0;
+        virtual bool swapVarWithSubTree(const std::unique_ptr<AstNode>& subtree, const std::string& toBeReplaced) = 0;
     };
 
     class ValueNode : public AstNode {
@@ -358,11 +391,19 @@ private:
         }
 
         [[nodiscard]] std::string asString() const {
-            return std::move(std::to_string(std::real(this->value)));
+            return std::to_string(std::real(this->value));
         }
 
         [[nodiscard]] std::unique_ptr<AstNode> derivative(const std::string& wrt) {
             return std::make_unique<ValueNode>(0);
+        }
+        
+        bool optimize() {
+            return true;
+        };
+
+        bool swapVarWithSubTree(const std::unique_ptr<AstNode>& subtree, const std::string& toBeReplaced) {
+            return false;
         }
     private:
         T value;
@@ -405,6 +446,14 @@ private:
         [[nodiscard]] std::unique_ptr<AstNode> derivative(const std::string& wrt) {
             return std::make_unique<ValueNode>(name == wrt ? 1 : 0);
         }
+        
+        bool optimize() {
+            return false;
+        }
+
+        bool swapVarWithSubTree(const std::unique_ptr<AstNode>& subtree, const std::string& toBeReplaced) {
+            return name == toBeReplaced;
+        }
 
     private:
         std::string name;
@@ -415,7 +464,7 @@ private:
     class UnaryNode : public AstNode {
 
     public:
-        UnaryNode(std::string_view name, const Expression& parent, std::unique_ptr<AstNode>&& child_)
+        UnaryNode(const std::string& name, const Expression& parent, std::unique_ptr<AstNode>&& child_)
                 : self(name), context(parent)
         {
             if (!context.unaryFuncs.contains(name))
@@ -426,11 +475,18 @@ private:
         }
 
         UnaryNode(UnaryNode&& old) noexcept
-                : eval(std::move(old.eval)), child(std::move(old.child))
-        {}
+        {
+            self = old.self;
+            eval = old.eval;
+            child = std::move(old.child);
+            context = old.context;
+        }
 
-        UnaryNode(const UnaryNode& old) {
-            *this = old.clone();
+        UnaryNode(const UnaryNode& old) noexcept {
+            self = old.self;
+            eval = old.eval;
+            child = old.child->clone();
+            context = old.context;
         }
 
         [[nodiscard]] std::unique_ptr<AstNode> clone() const final {
@@ -450,21 +506,53 @@ private:
         }
 
         [[nodiscard]] std::string asString() const {
-            return std::move(std::string{self} + "(" + child->asString() + ")");
+            return std::string{self} + "(" + child->asString() + ")";
         }
 
         [[nodiscard]] std::unique_ptr<AstNode> derivative(const std::string& wrt) {
             if (context.simpleDerivatives.contains(self)) {
-                auto f_ = child->derivative(wrt);
-                auto rhs = std::make_unique<UnaryNode>(std::string{"cos"}, context, std::move(f_->clone()));
-                auto lhs = std::move(f_);
-                return std::make_unique<BinaryNode>(std::string{"*"}, context, std::move(lhs), std::move(rhs));
+                auto xp = child->derivative(wrt);
+                auto x = std::move(child);
+                Expression temp(std::string{context.simpleDerivatives.at(self).second});
+                assert(temp.variables.contains("x"));
+                assert(temp.variables.contains("xp"));
+
+                auto result = std::move(temp.root);
+                result->swapVarWithSubTree(x, "x");
+                result->swapVarWithSubTree(xp, "xp");
+                return result;
+
+            }
+            else if (self == "cos") {
+                auto f_d = std::make_unique<UnaryNode>("sin", context, child->clone());
+                auto neg = std::make_unique<UnaryNode>("-", context, std::move(f_d));
+                return std::make_unique<BinaryNode>("*", context, child->derivative(wrt), std::move(neg));
+            }
+            else if (self == "tan") {
+                auto exp = std::make_unique<ValueNode>(2);
+                auto base = std::make_unique<UnaryNode>("sec", context, child->clone());
+                auto sec_2 =  std::make_unique<BinaryNode>("^", context, std::move(base), std::move(exp));
+                return std::make_unique<BinaryNode>("*", context, child->derivative(wrt), std::move(sec_2));
             }
             else throw std::invalid_argument("Derivative for " + std::string{self} + " is not implemented");
         }
+        
+        bool optimize() {
+            if (child->optimize()) {
+                child = std::make_unique<ValueNode>(child->evaluate());
+                return true;
+            }
+            return false;
+        }
 
+        bool swapVarWithSubTree(const std::unique_ptr<AstNode>& subtree, const std::string& toBeReplaced) {
+            if (child->swapVarWithSubTree(subtree, toBeReplaced)) {
+                child = subtree->clone();
+            }
+            return false;
+        }
     private:
-        std::string_view self;
+        std::string self;
         std::function<T(T)> eval;
         std::unique_ptr<AstNode> child;
         const Expression& context;
@@ -473,8 +561,8 @@ private:
     
     class BinaryNode : public AstNode {
     public:
-        BinaryNode(std::string_view name, const Expression& parent, std::unique_ptr<AstNode>&& leftChild_, std::unique_ptr<AstNode>&& rightChild_)
-                : self(name), context(parent)
+        BinaryNode(std::string name, const Expression& parent, std::unique_ptr<AstNode>&& leftChild_, std::unique_ptr<AstNode>&& rightChild_)
+                : self(std::move(name)), context(parent)
         {
             if (!context.binaryFuncs.contains(self))
                 throw std::invalid_argument("Tried initializing unary function node with invalid name");
@@ -484,12 +572,20 @@ private:
             rightChild = std::move(rightChild_);
         }
 
-        BinaryNode(BinaryNode&& old) noexcept
-                : eval(old.func), leftChild(old.leftChild), rightChild(old.rightChild)
-        {}
+        BinaryNode(BinaryNode&& old) noexcept {
+            self = old.self;
+            eval = old.eval;
+            leftChild = std::move(old.leftChild);
+            rightChild = std::move(old.rightChild);
+            context = old.context;
+        }
 
         BinaryNode(const BinaryNode& old) {
-            *this = old.clone();
+            self = old.self;
+            eval = old.eval;
+            leftChild = old.leftChild->clone();
+            rightChild = old.rightChild->clone();
+            context = old.context;
         }
 
         [[nodiscard]] std::unique_ptr<AstNode> clone() const final {
@@ -509,7 +605,7 @@ private:
         }
 
         [[nodiscard]] std::string asString() const {
-            return leftChild->asString() + std::string{self} + rightChild->asString();
+            return "(" + leftChild->asString() + ")" + std::string{self} + "(" + rightChild->asString() + ")";
         }
 
         [[nodiscard]] std::unique_ptr<AstNode> derivative(const std::string& wrt) {
@@ -532,8 +628,42 @@ private:
             }
             else throw std::invalid_argument("Derivative for operator " + std::string{self} + " is not defined");
         }
+
+        bool optimize() {
+            auto left = leftChild->optimize(), right = rightChild->optimize();
+            if (!(left && right)) {
+                if (left) {
+                    leftChild = std::make_unique<ValueNode>(leftChild->evaluate());
+
+                }
+                else if (right) {
+                    rightChild = std::make_unique<ValueNode>(rightChild->optimize());
+                }
+                if (self == "*") {
+                    if (right || left) {
+                        if ((right ? rightChild : leftChild)->evaluate() == static_cast<T>(0)) {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            }
+            else return true;
+        }
+
+        bool swapVarWithSubTree(const std::unique_ptr<AstNode>& subtree, const std::string& toBeReplaced) {
+            bool left = leftChild->swapVarWithSubTree(subtree, toBeReplaced),
+                 right = rightChild->swapVarWithSubTree(subtree, toBeReplaced);
+            if (left) {
+                leftChild = subtree->clone();
+            }
+            if (right) {
+                rightChild = subtree->clone();
+            }
+            return false;
+        }
     private:
-        std::string_view self;
+        std::string self;
         std::function<T(const T&, const T&)> eval;
         std::unique_ptr<AstNode> leftChild, rightChild;
         const Expression& context;
