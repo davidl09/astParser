@@ -35,21 +35,22 @@ public:
     }),
 
     unaryFuncs({
-        {"sqrt", [](const T &arg) -> T { return static_cast<T>(std::sqrt(arg)); }},
-        {"exp",  [](const T &arg) -> T { return static_cast<T>(std::exp(arg)); }},
-        {"sin",  [](const T &arg) -> T { return static_cast<T>(std::sin(arg)); }},
-        {"cos",  [](const T &arg) -> T { return static_cast<T>(std::cos(arg)); }},
-        {"tan",  [](const T &arg) -> T { return static_cast<T>(std::tan(arg)); }},
-        {"csec", [](const T &arg) -> T { return static_cast<T>(1) / std::sin(arg); }},
-        {"sec",  [](const T &arg) -> T { return static_cast<T>(1) / std::cos(arg); }},
-        {"cot",  [](const T &arg) -> T { return static_cast<T>(1) / std::tan(arg); }},
-        {"asin", [](const T &arg) -> T { return static_cast<T>(std::asin(arg)); }},
-        {"acos", [](const T &arg) -> T { return static_cast<T>(std::acos(arg)); }},
-        {"atan", [](const T &arg) -> T { return static_cast<T>(std::atan(arg)); }},
-        {"ln",   [](const T &arg) -> T { return static_cast<T>(std::log(arg)); }},
-        {"log",  [](const T &arg) -> T { return static_cast<T>(std::log10(arg)); }},
-        {"abs",  [](const T &arg) -> T { return static_cast<T>(std::abs(arg)); }},
-        {"-",    [](const T &arg) -> T { return -arg; }},
+                    {"sqrt", [](const T &arg) -> T { return static_cast<T>(std::sqrt(arg)); }},
+                    {"cbrt", [](const T &arg) -> T { return static_cast<T>(std::cbrt(arg)); }},
+                    {"exp",  [](const T &arg) -> T { return static_cast<T>(std::exp(arg)); }},
+                    {"sin",  [](const T &arg) -> T { return static_cast<T>(std::sin(arg)); }},
+                    {"cos",  [](const T &arg) -> T { return static_cast<T>(std::cos(arg)); }},
+                    {"tan",  [](const T &arg) -> T { return static_cast<T>(std::tan(arg)); }},
+                    {"csec", [](const T &arg) -> T { return static_cast<T>(1) / std::sin(arg); }},
+                    {"sec",  [](const T &arg) -> T { return static_cast<T>(1) / std::cos(arg); }},
+                    {"cot",  [](const T &arg) -> T { return static_cast<T>(1) / std::tan(arg); }},
+                    {"asin", [](const T &arg) -> T { return static_cast<T>(std::asin(arg)); }},
+                    {"acos", [](const T &arg) -> T { return static_cast<T>(std::acos(arg)); }},
+                    {"atan", [](const T &arg) -> T { return static_cast<T>(std::atan(arg)); }},
+                    {"ln",   [](const T &arg) -> T { return static_cast<T>(std::log(arg)); }},
+                    {"log",  [](const T &arg) -> T { return static_cast<T>(std::log10(arg)); }},
+                    {"abs",  [](const T &arg) -> T { return static_cast<T>(std::abs(arg)); }},
+                    {"-",    [](const T &arg) -> T { return -arg; }},
     })
     {
         if constexpr (is_complex_floating_point<T>::value) {
@@ -74,7 +75,7 @@ public:
     }
 
     Expression(Expression&& old) noexcept
-    : isValid(old.isValid), root(old.root ? std::move(old.root) : nullptr), binaryFuncs(std::move(old.binaryFuncs)), unaryFuncs(std::move(old.unaryFuncs)), variables(std::move(old.variables)), self(old.self)
+    : isValid(old.isValid), root(old.root ? std::move(old.root) : nullptr), self(old.self), binaryFuncs(std::move(old.binaryFuncs)), unaryFuncs(std::move(old.unaryFuncs)), variables(std::move(old.variables))
     {}
 
     Expression() {
@@ -85,7 +86,7 @@ public:
     Expression derivative(const std::string& wrt) {
         Expression result;
         result.root = this->root->derivative(wrt, result);
-        //result.optimize();
+        //result.optimize(); //optimize is broken at the moment
         result.updateStrRepr();
         return result;
     }
@@ -358,6 +359,11 @@ private:
             {"atan", {"atan(x)", "xp/(1 + x^2)"}},
             {"ln", {"ln(x)", "xp/x"}},
             {"log", {"log(x)", "xp/(x * ln(10))"}},
+            {"sqrt", {"sqrt(x)", "xp/(2*sqrt(x))"}},
+            {"cbrt", {"cbrt(x)", "xp/(3*cbrt(x)*cbrt(x))"}},
+            {"sinh", {"sinh(x)", "xp*cosh(x)"}},
+            {"cosh", {"cosh(x)", "xp*sinh(x)"}},
+            {"tanh", {"tanh(x)", "xp*(1 - tanh(x)*tanh(x))"}},
     };
 
     class AstNode {
@@ -438,7 +444,7 @@ private:
         {}
 
         VariableNode(VariableNode&& old) noexcept
-                : AstNode(), name(std::move(old.name)), variables(std::move(old.variables))
+                : AstNode(), name(std::move(old.name)), variables(old.variables)
         {}
 
         VariableNode(const VariableNode& old)
@@ -486,7 +492,7 @@ private:
     class UnaryNode : public AstNode {
 
     public:
-        UnaryNode(const std::string& name, const Expression& parent, std::unique_ptr<AstNode>&& child_)
+        UnaryNode(const std::string& name, Expression& parent, std::unique_ptr<AstNode>&& child_)
                 : self(name), context(parent)
         {
             if (!context.unaryFuncs.contains(name))
@@ -497,19 +503,12 @@ private:
         }
 
         UnaryNode(UnaryNode&& old) noexcept
-        {
-            self = old.self;
-            eval = old.eval;
-            child = std::move(old.child);
-            context = old.context;
-        }
+                : self(old.self), eval(old.eval), child(std::move(old.child)), context(old.context)
+        {}
 
-        UnaryNode(const UnaryNode& old) noexcept {
-            self = old.self;
-            eval = old.eval;
-            child = old.child->clone();
-            context = old.context;
-        }
+        UnaryNode(const UnaryNode& old) noexcept
+                : self(old.self), eval(old.eval), child(old.child->clone()), context(old.context)
+        {}
 
         [[nodiscard]] std::unique_ptr<AstNode> clone() const final {
             return std::move(std::make_unique<UnaryNode>(self, context, child->clone()));
@@ -565,13 +564,13 @@ private:
         std::string self;
         std::function<T(T)> eval;
         std::unique_ptr<AstNode> child;
-        const Expression& context;
+        Expression& context;
     };
 
     
     class BinaryNode : public AstNode {
     public:
-        BinaryNode(std::string name, const Expression& parent, std::unique_ptr<AstNode>&& leftChild_, std::unique_ptr<AstNode>&& rightChild_)
+        BinaryNode(std::string name, Expression& parent, std::unique_ptr<AstNode>&& leftChild_, std::unique_ptr<AstNode>&& rightChild_)
                 : self(std::move(name)), context(parent)
         {
             if (!context.binaryFuncs.contains(self))
@@ -582,21 +581,13 @@ private:
             rightChild = std::move(rightChild_);
         }
 
-        BinaryNode(BinaryNode&& old) noexcept {
-            self = old.self;
-            eval = old.eval;
-            leftChild = std::move(old.leftChild);
-            rightChild = std::move(old.rightChild);
-            context = old.context;
-        }
+        BinaryNode(BinaryNode&& old) noexcept
+                : self(old.self), eval(old.eval), leftChild(std::move(old.leftChild)), rightChild(std::move(old.leftChild)), context(old.context)
+        {}
 
-        BinaryNode(const BinaryNode& old) {
-            self = old.self;
-            eval = old.eval;
-            leftChild = old.leftChild->clone();
-            rightChild = old.rightChild->clone();
-            context = old.context;
-        }
+        BinaryNode(const BinaryNode& old)
+                : self(old.self), eval(old.eval), leftChild(old.leftChild->clone()), rightChild(old.rightChild->clone()), context(old.context)
+        {}
 
         [[nodiscard]] std::unique_ptr<AstNode> clone() const final {
             return std::make_unique<BinaryNode>(self, context, leftChild->clone(), rightChild->clone());
@@ -676,7 +667,7 @@ private:
         std::string self;
         std::function<T(const T&, const T&)> eval;
         std::unique_ptr<AstNode> leftChild, rightChild;
-        const Expression& context;
+        Expression& context;
     };
 
 };

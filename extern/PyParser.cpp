@@ -19,5 +19,6 @@ PYBIND11_MODULE(mathfuncs_parse, m) {
             .def("vars", &Expression<double>::getVariables)
             .def("add_func", py::overload_cast<const std::string&, std::function<double(double)>>(&Expression<double>::addFunction))
             .def("avail_funcs", &Expression<double>::getUnaryFuncs)
-            .def("str", &Expression<double>::string);
+            .def("str", &Expression<double>::string)
+            .def("derivative", &Expression<double>::derivative);
 }
