@@ -69,11 +69,12 @@ public:
     }
 
     Expression(const Expression& old)
-    : isValid(old.isValid), root(old.root ? old.root->clone() : nullptr), binaryFuncs(old.binaryFuncs), unaryFuncs(old.unaryFuncs), variables(old.variables)
-    {}
+    {
+        *this = Expression(old.self);
+    }
 
     Expression(Expression&& old) noexcept
-    : isValid(old.isValid), root(old.root ? std::move(old.root) : nullptr), binaryFuncs(std::move(old.binaryFuncs)), unaryFuncs(std::move(old.unaryFuncs)), variables(std::move(old.variables))
+    : isValid(old.isValid), root(old.root ? std::move(old.root) : nullptr), binaryFuncs(std::move(old.binaryFuncs)), unaryFuncs(std::move(old.unaryFuncs)), variables(std::move(old.variables)), self(old.self)
     {}
 
     Expression() {
@@ -82,11 +83,11 @@ public:
     }
 
     Expression derivative(const std::string& wrt) {
-        Expression temp = *this;
-        temp.root = std::move(temp.root->derivative(wrt));
-        optimize();
-        temp.self = temp.root->asString();
-        return temp;
+        Expression result;
+        result.root = this->root->derivative(wrt, result);
+        //result.optimize();
+        result.updateStrRepr();
+        return result;
     }
 
     void optimize() {
@@ -222,6 +223,27 @@ public:
 
 private:
 
+    Expression(std::unique_ptr<AstNode> root_) {
+        Expression e;
+        e.root = std::move(root_);
+        e.self = e.root->asString();
+    }
+
+    void updateStrRepr() {
+        if (!(root != nullptr && root->validateNode())) {
+            invalidate();
+            return;
+        }
+        self = root->asString();
+
+        //update variable table
+        auto tokenExpression = tokenizeExpression(self);
+        auto tempVars = tokenExpression.getVariables();
+        variables.clear();
+
+        std::for_each(tempVars.begin(), tempVars.end(), [&](const Token& t){variables[t.getStr()];});
+    }
+
     static TokenExpression tokenizeExpression(const std::string& expression) {
         if (expression.empty()) {
             throw std::invalid_argument("Cannot initialize empty expression");
@@ -326,14 +348,14 @@ private:
             {"sin", {"sin(x)", "xp*cos(x)"}},
             {"cos", {"cos(x)", "-xp*sin(x)"}},
             {"exp", {"exp(x)", "xp*exp(x)"}},
-            {"tan", {"tan(x)", "xp*(1 + tan(x)*tan(x))"}},
+            {"tan", {"tan(x)", "xp*sec(x)^2"}},
             {"log", {"log(x)", "xp/x"}},
             {"csec", {"csec(x)", "-xp*csc(x)*cot(x)"}},
             {"sec", {"sec(x)", "xp*sec(x)*tan(x)"}},
             {"cot", {"cot(x)", "-xp*(1 + cot(x)*cot(x))"}},
             {"asin", {"asin(x)", "xp/sqrt(1 - x*x)"}},
             {"acos", {"acos(x)", "-xp/sqrt(1 - x*x)"}},
-            {"atan", {"atan(x)", "xp/(1 + x*x)"}},
+            {"atan", {"atan(x)", "xp/(1 + x^2)"}},
             {"ln", {"ln(x)", "xp/x"}},
             {"log", {"log(x)", "xp/(x * ln(10))"}},
     };
@@ -350,7 +372,7 @@ private:
         [[nodiscard]] virtual std::unique_ptr<AstNode> clone() const = 0;
         [[nodiscard]] virtual bool validateNode() const = 0;
         [[nodiscard]] virtual std::string asString() const = 0;
-        [[nodiscard]] virtual std::unique_ptr<AstNode> derivative(const std::string& wrt) = 0;
+        [[nodiscard]] virtual std::unique_ptr<AstNode> derivative(const std::string& wrt, Expression& ctx) = 0;
         virtual bool optimize() = 0;
         virtual bool swapVarWithSubTree(const std::unique_ptr<AstNode>& subtree, const std::string& toBeReplaced) = 0;
     };
@@ -394,7 +416,7 @@ private:
             return std::to_string(std::real(this->value));
         }
 
-        [[nodiscard]] std::unique_ptr<AstNode> derivative(const std::string& wrt) {
+        [[nodiscard]] std::unique_ptr<AstNode> derivative(const std::string& wrt, Expression& ctx) {
             return std::make_unique<ValueNode>(0);
         }
         
@@ -443,7 +465,7 @@ private:
             return name;
         }
 
-        [[nodiscard]] std::unique_ptr<AstNode> derivative(const std::string& wrt) {
+        [[nodiscard]] std::unique_ptr<AstNode> derivative(const std::string& wrt, Expression& ctx) {
             return std::make_unique<ValueNode>(name == wrt ? 1 : 0);
         }
         
@@ -509,30 +531,18 @@ private:
             return std::string{self} + "(" + child->asString() + ")";
         }
 
-        [[nodiscard]] std::unique_ptr<AstNode> derivative(const std::string& wrt) {
-            if (context.simpleDerivatives.contains(self)) {
-                auto xp = child->derivative(wrt);
-                auto x = std::move(child);
-                Expression temp(std::string{context.simpleDerivatives.at(self).second});
-                assert(temp.variables.contains("x"));
-                assert(temp.variables.contains("xp"));
+        [[nodiscard]] std::unique_ptr<AstNode> derivative(const std::string& wrt, Expression& ctx) {
+            if (ctx.simpleDerivatives.contains(self)) {
+                auto xp = child->derivative(wrt, ctx);
+                auto x = child->clone();
 
-                auto result = std::move(temp.root);
-                result->swapVarWithSubTree(x, "x");
-                result->swapVarWithSubTree(xp, "xp");
-                return result;
+                auto dTree = makeExprTree(tokenizeExpression(std::string{ctx.simpleDerivatives.at(self).second}), ctx);
 
-            }
-            else if (self == "cos") {
-                auto f_d = std::make_unique<UnaryNode>("sin", context, child->clone());
-                auto neg = std::make_unique<UnaryNode>("-", context, std::move(f_d));
-                return std::make_unique<BinaryNode>("*", context, child->derivative(wrt), std::move(neg));
-            }
-            else if (self == "tan") {
-                auto exp = std::make_unique<ValueNode>(2);
-                auto base = std::make_unique<UnaryNode>("sec", context, child->clone());
-                auto sec_2 =  std::make_unique<BinaryNode>("^", context, std::move(base), std::move(exp));
-                return std::make_unique<BinaryNode>("*", context, child->derivative(wrt), std::move(sec_2));
+                dTree->swapVarWithSubTree(x, "x");
+                dTree->swapVarWithSubTree(xp, "xp");
+
+                return dTree;
+
             }
             else throw std::invalid_argument("Derivative for " + std::string{self} + " is not implemented");
         }
@@ -608,23 +618,23 @@ private:
             return "(" + leftChild->asString() + ")" + std::string{self} + "(" + rightChild->asString() + ")";
         }
 
-        [[nodiscard]] std::unique_ptr<AstNode> derivative(const std::string& wrt) {
+        [[nodiscard]] std::unique_ptr<AstNode> derivative(const std::string& wrt, Expression& ctx) {
             if (self == "+" || self == "-") {
-                return std::make_unique<BinaryNode>(self, context, std::move(leftChild->derivative(wrt)), rightChild->derivative(wrt));
+                return std::make_unique<BinaryNode>(self, ctx, std::move(leftChild->derivative(wrt, ctx)), rightChild->derivative(wrt, ctx));
             }
             else if (self == "*") {
-                auto lhs = std::make_unique<BinaryNode>("*", context, leftChild->derivative(wrt), rightChild->clone());
-                auto rhs = std::make_unique<BinaryNode>("*", context, leftChild->clone(), rightChild->derivative(wrt));
-                return std::make_unique<BinaryNode>("+", context, std::move(lhs), std::move(rhs));
+                auto lhs = std::make_unique<BinaryNode>("*", ctx, leftChild->derivative(wrt, ctx), rightChild->clone());
+                auto rhs = std::make_unique<BinaryNode>("*", ctx, leftChild->clone(), rightChild->derivative(wrt, ctx));
+                return std::make_unique<BinaryNode>("+", ctx, std::move(lhs), std::move(rhs));
             }
             else if (self == "/") {
-                auto lhsNumer = std::make_unique<BinaryNode>("*", context, leftChild->derivative(wrt), rightChild->clone());
-                auto rhsNumer = std::make_unique<BinaryNode>("*", context, leftChild->clone(), rightChild->derivative(wrt));
-                auto numer = std::make_unique<BinaryNode>("-", context, std::move(lhsNumer), std::move(rhsNumer));
+                auto lhsNumer = std::make_unique<BinaryNode>("*", ctx, leftChild->derivative(wrt, ctx), rightChild->clone());
+                auto rhsNumer = std::make_unique<BinaryNode>("*", ctx, leftChild->clone(), rightChild->derivative(wrt, ctx));
+                auto numer = std::make_unique<BinaryNode>("-", ctx, std::move(lhsNumer), std::move(rhsNumer));
 
-                auto denom = std::make_unique<BinaryNode>("^", context, rightChild->clone(), std::make_unique<ValueNode>(2));
+                auto denom = std::make_unique<BinaryNode>("^", ctx, rightChild->clone(), std::make_unique<ValueNode>(2));
 
-                return std::move(std::make_unique<BinaryNode>("/", context, std::move(numer), std::move(denom)));
+                return std::move(std::make_unique<BinaryNode>("/", ctx, std::move(numer), std::move(denom)));
             }
             else throw std::invalid_argument("Derivative for operator " + std::string{self} + " is not defined");
         }

@@ -144,7 +144,8 @@ private:
         current += count;
         return Token{result, Token::ValueType};
     }
-    
+
+    //does not recognize functions if name is not immediately followed by '('
     [[nodiscard]] Token handleFuncCall()  {
         std::string result;
         auto begin = current;
