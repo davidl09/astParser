@@ -73,9 +73,8 @@ public:
     }
 
     Expression(const Expression& old)
-    {
-        *this = Expression(old.self);
-    }
+        : isValid(old.isValid), root(old.root ? old.root->clone() : nullptr), self(old.self), binaryFuncs(old.binaryFuncs), unaryFuncs(old.unaryFuncs), variables(old.variables)
+    {}
 
     Expression(Expression&& old) noexcept
     : isValid(old.isValid), root(old.root ? std::move(old.root) : nullptr), self(old.self), binaryFuncs(std::move(old.binaryFuncs)), unaryFuncs(std::move(old.unaryFuncs)), variables(std::move(old.variables))
@@ -209,7 +208,7 @@ public:
         if (!isValid) throw std::runtime_error("Cannot create function from invalid expression");
         if (!variables.empty()) throw std::runtime_error("Cannot create 0-variable expression from variable function");
 
-        Expression<T> copy = *this;
+        Expression<T> copy(*this);
 
         return [copy](const std::unordered_map<std::string, T>& vars = {{}}){
             return copy.evaluate(vars);
@@ -554,7 +553,7 @@ private:
             return child->validateNode();
         }
 
-        [[nodiscard]] std::string name() const {
+        [[nodiscard]] std::string selfId() const {
             return self;
         }
 
@@ -641,7 +640,7 @@ private:
             return leftChild->validateNode() && rightChild->validateNode();
         }
 
-        [[nodiscard]] std::string name() const {
+        [[nodiscard]] std::string selfId() const {
             return self;
         }
 

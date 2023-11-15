@@ -330,14 +330,11 @@ TEST(validity, emptyExpr) {
 
 TEST(asExpressionLambda, scope) {
     //create an object out of test scope to test capture by value of Expression::asFunction
-    auto l = [](){
-        Expression<double> e("3+4*7");
-        return e.asExpressionLambda();
-    };
+    auto l = Expression<double>("4+3*7").asExpressionLambda();
 
-    EXPECT_NO_FATAL_FAILURE(l()());
-    EXPECT_NO_THROW(l()());
-    EXPECT_TRUE(l()() == 31);
+    EXPECT_NO_FATAL_FAILURE(l());
+    EXPECT_NO_THROW(l());
+    EXPECT_TRUE(l() == 25);
 }
 
 TEST(funcOrder, e_sin_x) {
