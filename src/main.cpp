@@ -18,7 +18,7 @@ int main() {
         catch(std::exception& e) {
             std::cout << "Error: " << e.what() << "\n";
         }
-    }
+    }q
     */
     while (true) {
         std::cout << "Enter an expression \n";
