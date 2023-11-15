@@ -5,8 +5,7 @@
 int main() {
     Expression<double> expr;
 
-    //expr.addFunction("f", x_2_1.asUnaryFunc());
-/*
+    /*
     while (true) {
         std::cout << "Enter an expression \n";
         try {
@@ -20,6 +19,7 @@ int main() {
         }
     }q
     */
+
     while (true) {
         std::cout << "Enter an expression \n";
         std::cin >> expr;
