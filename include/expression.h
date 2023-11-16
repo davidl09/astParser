@@ -626,6 +626,7 @@ private:
 
             auto leftNoVar = leftChild->noVariableNodes(), rightNoVar = rightChild->noVariableNodes();
 
+
             if (leftChild == rightChild) {
                 if (self == "+") {
                     return std::make_unique<BinaryNode>("*", context, std::make_unique<ValueNode>(2), std::move(leftChild));
@@ -645,13 +646,17 @@ private:
                 return std::make_unique<ValueNode>(evaluate());
             }
 
+            else if (!(leftNoVar || rightNoVar)) {
+                return std::make_unique<BinaryNode>(std::move(*this));
+            }
+
             else { //at this point either left or right no var is true;
                 auto& constNode = (leftNoVar ? leftChild : rightChild);
                 auto& varNode = (leftNoVar ? rightChild : leftChild);
 
                 constNode = std::make_unique<ValueNode>(constNode->evaluate());
 
-                T value = constNode->evaluate();
+
 
                 if (self == "+") {
                     if (constNode->evaluate() == static_cast<T>(0)) {
@@ -695,15 +700,15 @@ private:
                         if(val == static_cast<T>(0))
                             return std::make_unique<ValueNode>(0);
                         else if (val == static_cast<T>(1))
-                            return std::move(rightChild);
+                            return rightChild->clone();
 
                     }
                     if (rightNoVar) {
                         auto val = rightChild->evaluate();
                         if (val == static_cast<T>(0))
-                            return std::make_unique<ValueNode>(0);
+                            return std::make_unique<ValueNode>(1); //x
                         if (val == static_cast<T>(1))
-                            return std::make_unique<ValueNode>(1); // 1^x == 1 for all x
+                            return std::move(leftChild); // 1^x == 1 for all x
                     }
                 }
             }
