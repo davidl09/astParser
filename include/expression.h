@@ -319,6 +319,7 @@ private:
         [[nodiscard]] virtual std::unique_ptr<AstNode> derivative(const std::string& wrt, Context<T>& ctx) = 0;
         [[nodiscard]] virtual std::unique_ptr<AstNode> optimize() = 0;
         [[nodiscard]] virtual bool noVariableNodes() = 0;
+        //[[nodiscard]] virtual bool matchesPattern(const std::string& pattern);
 
         virtual bool swapVarWithSubTree(const std::unique_ptr<AstNode>& subtree, const std::string& toBeReplaced) = 0;
 
@@ -623,7 +624,15 @@ private:
             leftChild = leftChild->optimize();
             rightChild = rightChild->optimize();
 
+            auto copy = clone();
 
+
+
+            for (auto pattern : context.getSimplifyRules().at[self]) {
+
+            }
+
+/*
             auto leftNoVar = leftChild->noVariableNodes(), rightNoVar = rightChild->noVariableNodes();
 
 
@@ -712,7 +721,7 @@ private:
                     }
                 }
             }
-            return std::make_unique<BinaryNode>(std::move(*this));
+            return std::make_unique<BinaryNode>(std::move(*this));*/
         }
 
         [[nodiscard]] bool noVariableNodes() {
