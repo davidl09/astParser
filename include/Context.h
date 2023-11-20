@@ -90,7 +90,8 @@ public:
                                       {"x^0", "1"},
                                       {"0^x", "0"},
                               }},
-                } {
+                }
+    {
         if constexpr (is_complex_floating_point<T>::value) {
             unaryFuncs["mandelbrot"] = mandelbrot<T>;
             unaryFuncs["arg"] = [](const T &arg) -> T { return std::arg(arg); };
@@ -98,6 +99,10 @@ public:
             unaryFuncs["imag"] = [](const T &arg) -> T { return std::imag(arg); };
             unaryFuncs["gamma"] = gamma_complex<T>;
         }
+    }
+
+    const auto &getVars() const {
+        return variables;
     }
 
     auto &getVars() {
@@ -126,7 +131,7 @@ private:
     std::unordered_map<std::string_view, std::function<T(T)>> unaryFuncs;
     std::unordered_map<std::string, T> variables;
     std::unordered_map<std::string_view, std::pair<std::string_view, std::string_view>> simpleDerivatives;
-    const std::unordered_map<std::string_view, std::unordered_map<std::string_view, std::string_view>> simplifyRules;
+    std::unordered_map<std::string_view, std::unordered_map<std::string_view, std::string_view>> simplifyRules;
 };
 
 

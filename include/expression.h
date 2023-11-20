@@ -319,6 +319,7 @@ private:
         [[nodiscard]] virtual std::unique_ptr<AstNode> derivative(const std::string& wrt, Context<T>& ctx) = 0;
         [[nodiscard]] virtual std::unique_ptr<AstNode> optimize() = 0;
         [[nodiscard]] virtual bool noVariableNodes() = 0;
+        [[nodiscard]] virtual bool matches(std::unique_ptr<AstNode>& match, const Context<T>& ctx) = 0;
         //[[nodiscard]] virtual bool matchesPattern(const std::string& pattern);
 
         virtual bool swapVarWithSubTree(const std::unique_ptr<AstNode>& subtree, const std::string& toBeReplaced) = 0;
@@ -382,6 +383,10 @@ private:
             return std::make_unique<ValueNode>(std::move(*this));
         };
 
+        bool matches(std::unique_ptr<AstNode>& match, const Context<T>& ctx) {
+            return true;
+        }
+
         [[nodiscard]] bool noVariableNodes() {
             return true;
         }
@@ -441,6 +446,10 @@ private:
 
         [[nodiscard]] bool noVariableNodes() {
             return false;
+        }
+
+        bool matches(std::unique_ptr<AstNode>& match, const Context<T>& ctx) {
+            return true;
         }
 
         bool swapVarWithSubTree(const std::unique_ptr<AstNode>& subtree, const std::string& toBeReplaced) {
@@ -524,6 +533,10 @@ private:
 
         [[nodiscard]] bool noVariableNodes() {
             return child->noVariableNodes();
+        }
+
+        bool matches(std::unique_ptr<AstNode>& match, const Context<T>& ctx) {
+            return true;
         }
 
         bool swapVarWithSubTree(const std::unique_ptr<AstNode>& subtree, const std::string& toBeReplaced) {
@@ -626,106 +639,21 @@ private:
 
             auto copy = clone();
 
+            auto patternList = context.getSimplifyRules().at(self);
+            for (auto pattern = patternList.begin(); pattern != patternList.end(); ++pattern) {
+                Expression match(std::string{pattern->first});
 
-
-            for (auto pattern : context.getSimplifyRules().at[self]) {
 
             }
 
-/*
-            auto leftNoVar = leftChild->noVariableNodes(), rightNoVar = rightChild->noVariableNodes();
-
-
-            if (leftChild == rightChild) {
-                if (self == "+") {
-                    return std::make_unique<BinaryNode>("*", context, std::make_unique<ValueNode>(2), std::move(leftChild));
-                }
-                if (self == "-") {
-                    return std::make_unique<ValueNode>(0);
-                }
-                if (self == "*") {
-                    return std::make_unique<BinaryNode>("^", context, std::move(leftChild), std::make_unique<ValueNode>(2));
-                }
-                if (self == "/") {
-                    return std::make_unique<ValueNode>(1);
-                }
-            }
-
-            else if(leftNoVar && rightNoVar) {
-                return std::make_unique<ValueNode>(evaluate());
-            }
-
-            else if (!(leftNoVar || rightNoVar)) {
-                return std::make_unique<BinaryNode>(std::move(*this));
-            }
-
-            else { //at this point either left or right no var is true;
-                auto& constNode = (leftNoVar ? leftChild : rightChild);
-                auto& varNode = (leftNoVar ? rightChild : leftChild);
-
-                constNode = std::make_unique<ValueNode>(constNode->evaluate());
-
-
-
-                if (self == "+") {
-                    if (constNode->evaluate() == static_cast<T>(0)) {
-                        return varNode->clone();
-                    }
-                }
-
-                if (self == "-") {
-                    if (leftNoVar && leftChild->evaluate() == static_cast<T>(0)) {
-                        return std::move(rightChild);
-                    }
-                    if (rightNoVar && rightChild->evaluate() == static_cast<T>(0)) {
-                        return std::make_unique<UnaryNode>("-", context, std::move(leftChild));
-                    }
-                }
-
-                if (self == "*") {
-                    if (constNode->evaluate() == static_cast<T>(0)) {
-                        return std::make_unique<ValueNode>(0);
-                    }
-                    if (constNode->evaluate() == static_cast<T>(1)) {
-                        return varNode->clone();
-                    }
-                }
-
-                if (self == "/") {
-                    if (leftNoVar && leftChild->evaluate() == static_cast<T>(0)) {  // 0/x == 0
-                        return std::make_unique<ValueNode>(0);
-                    }
-                    if (rightNoVar && rightChild->evaluate() == static_cast<T>(1)) {  // x/1 == x
-                        return std::move(leftChild);
-                    }
-                    if (rightNoVar && rightChild->evaluate() == 0) {
-                        return std::make_unique<ValueNode>(static_cast<T>(1)/static_cast<T>(0));
-                    }
-                }
-
-                if (self == "^") {
-                    if (leftNoVar) {
-                        auto val = leftChild->evaluate();
-                        if(val == static_cast<T>(0))
-                            return std::make_unique<ValueNode>(0);
-                        else if (val == static_cast<T>(1))
-                            return rightChild->clone();
-
-                    }
-                    if (rightNoVar) {
-                        auto val = rightChild->evaluate();
-                        if (val == static_cast<T>(0))
-                            return std::make_unique<ValueNode>(1); //x
-                        if (val == static_cast<T>(1))
-                            return std::move(leftChild); // 1^x == 1 for all x
-                    }
-                }
-            }
-            return std::make_unique<BinaryNode>(std::move(*this));*/
         }
 
         [[nodiscard]] bool noVariableNodes() {
             return leftChild->noVariableNodes() && rightChild->noVariableNodes();
+        }
+
+        bool matches(std::unique_ptr<AstNode>& match, const Context<T>& ctx) {
+            return true;
         }
 
         bool swapVarWithSubTree(const std::unique_ptr<AstNode>& subtree, const std::string& toBeReplaced) {
