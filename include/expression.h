@@ -389,7 +389,7 @@ private:
             return false;
         }
     private:
-        T value;
+        const T value;
     };
 
     class VariableNode : public AstNode {
