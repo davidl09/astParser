@@ -43,6 +43,7 @@ public:
 
                 }),
                 simpleDerivatives({
+                        {"-", {"-x", "-xp"}},
                         {"sin", {"sin(x)", "xp*cos(x)"}},
                         {"cos", {"cos(x)", "-xp*sin(x)"}},
                         {"exp", {"exp(x)", "xp*exp(x)"}},
@@ -89,6 +90,7 @@ public:
                                       {"x^1", "x"},
                                       {"x^0", "1"},
                                       {"0^x", "0"},
+                                      {"(-x)^2", "x^2"}
                               }},
                 } {
         if constexpr (is_complex_floating_point<T>::value) {
