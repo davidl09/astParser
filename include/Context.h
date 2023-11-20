@@ -126,7 +126,7 @@ private:
     std::unordered_map<std::string_view, std::function<T(T)>> unaryFuncs;
     std::unordered_map<std::string, T> variables;
     std::unordered_map<std::string_view, std::pair<std::string_view, std::string_view>> simpleDerivatives;
-    const std::unordered_map<std::string_view, std::unordered_map<std::string_view, std::string_view>> simplifyRules;
+    std::unordered_map<std::string_view, std::unordered_map<std::string_view, std::string_view>> simplifyRules;
 };
 
 

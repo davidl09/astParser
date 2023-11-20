@@ -624,15 +624,6 @@ private:
             leftChild = leftChild->optimize();
             rightChild = rightChild->optimize();
 
-            auto copy = clone();
-
-
-
-            for (auto pattern : context.getSimplifyRules().at[self]) {
-
-            }
-
-/*
             auto leftNoVar = leftChild->noVariableNodes(), rightNoVar = rightChild->noVariableNodes();
 
 
@@ -721,7 +712,7 @@ private:
                     }
                 }
             }
-            return std::make_unique<BinaryNode>(std::move(*this));*/
+            return std::make_unique<BinaryNode>(std::move(*this));
         }
 
         [[nodiscard]] bool noVariableNodes() {
