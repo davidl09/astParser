@@ -22,9 +22,12 @@ int main() {
 
     while (true) {
         std::cout << "Enter an expression \n";
-        std::cin >> expr;
-        auto res = expr.derivative("x");
-
-        std::cout << res.string() << "\n";
+        try {
+            std::cin >> expr;
+            auto res = expr.derivative("x");
+            std::cout << res.string() << "\n";
+        } catch (std::exception& e) {
+            std::cout << e.what() << '\n';
+        }
     }
 }

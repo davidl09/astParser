@@ -6,7 +6,6 @@
 #define AST_TOKEN_H
 
 #include <vector>
-#include <numbers>
 #include <type_traits>
 #include <string>
 #include <memory>
@@ -14,7 +13,6 @@
 #include <cmath>
 #include <stack>
 #include <algorithm>
-#include <unordered_map>
 #include <functional>
 #include <utility>
 #include <cassert>
@@ -32,16 +30,16 @@ concept CplxOrRealFloat = std::is_floating_point_v<T> || is_complex_floating_poi
 class Token {
 public:
     enum TokenType : uint8_t {
-        ValueType = 0x0,
-        UnaryFuncType = 0x1,
-        BinaryFuncType = 0x2,
-        BracketType = 0x4,
-        RightAssociative = 0x08
+        ValueType = 1u >> 1,
+        UnaryFuncType = 1u,
+        BinaryFuncType = 1u << 1,
+        BracketType = 1u << 2,
+        RightAssociative = 1u << 3
     };
 
-    explicit Token(std::string val, Token::TokenType t) : value(std::move(val)), type(t) {
+    explicit Token(std::string val, const TokenType t) : value(std::move(val)), type(t) {
 
-        if(!std::all_of(value.begin(), value.end(), [](const auto& c) -> bool {
+        if(!std::ranges::all_of(value, [](const auto& c) -> bool {
             return std::isalnum(c) || std::string_view{"().+-*/^"}.find(c) != std::string::npos;
         })) //if invalid character detected
             throw std::invalid_argument("Tried creating Token with illegal character");
@@ -54,8 +52,7 @@ public:
         }
 
         if (value == "^")
-            type = static_cast<TokenType>(type | TokenType::RightAssociative);
-
+            type = static_cast<TokenType>(type | RightAssociative);
     };
 
     Token(const Token& t) = default;
@@ -68,17 +65,17 @@ public:
 
     [[nodiscard]] constexpr
     bool isValue() const {
-        return type == TokenType::ValueType;
+        return type == ValueType;
     }
 
     [[nodiscard]]
     bool isLiteralValue() const {
-        return std::all_of(value.begin(), value.end(), [](const auto& c){return (c >= '0' && c <= '9') || c == '.';}) && isValue();
+        return std::ranges::all_of(value, [](const auto& c){return std::isdigit(c) || c == '.';}) && isValue();
     }
 
     [[nodiscard]]
     bool isVariableValue() const {
-        return std::all_of(value.begin(), value.end(), [](const auto& c){return std::isalpha(c);}) && isValue();
+        return std::ranges::all_of(value, [](const auto& c){return std::isalpha(c);}) && isValue();
     }
 
     [[nodiscard]]
@@ -93,22 +90,22 @@ public:
 
     [[nodiscard]]
     bool isLeftBracket() const {
-        return value[0] == '(' && type == TokenType::BracketType;
+        return value.front() == '(' && type == BracketType;
     }
 
     [[nodiscard]] 
     bool isRightBracket() const {
-        return value[0] == ')' && type == TokenType::BracketType;
+        return value.front() == ')' && type == BracketType;
     }
 
     [[nodiscard]] constexpr
     bool isUnaryOp() const {
-        return type == TokenType::UnaryFuncType;
+        return type == UnaryFuncType;
     }
 
     [[nodiscard]] 
     bool isAnyMinus() const {
-        return getStr()[0] == '-';
+        return value.front() == '-';
     }
 
     [[nodiscard]] 
@@ -128,7 +125,7 @@ public:
 
     [[nodiscard]] constexpr
     bool isRightAssociative() const {
-        return (type & TokenType::RightAssociative);
+        return (type & RightAssociative);
     }
 
     [[nodiscard]]
@@ -146,19 +143,19 @@ public:
 
     void setAsUnaryMinus() {
         if(value == "-") {
-            type = TokenType::UnaryFuncType;
+            type = UnaryFuncType;
         }
     }
 
     void setAsBinaryMinus() {
         if (value == "-") {
-            type = TokenType::BinaryFuncType;
+            type = BinaryFuncType;
         }
     }
 
 
     template<CplxOrRealFloat T>
-    T convert_to () const
+    T convertTo () const
     {
         if(!isValue()) throw std::invalid_argument("Tried converting a non-value to a value");
         std::istringstream ss(value);

@@ -229,7 +229,7 @@ private:
 
             else if (it->isLiteralValue()) {
                 nodeStack.emplace_back(
-                        std::make_unique<ValueNode>(it->convert_to<T>())
+                        std::make_unique<ValueNode>(it->convertTo<T>())
                 );
             }
 
@@ -332,7 +332,7 @@ private:
 
     public:
         explicit ValueNode(const Token& token)
-                : AstNode(), value(token.convert_to<T>())
+                : AstNode(), value(token.convertTo<T>())
         {}
 
         explicit ValueNode(T value)

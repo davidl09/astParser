@@ -6,6 +6,7 @@
 #define AST_TOKENIZER_H
 
 #include "token.h"
+#include "Context.h"
 
 
 class Tokenizer {
@@ -13,10 +14,10 @@ public:
     Tokenizer(const Tokenizer&) = default;
     Tokenizer(Tokenizer&&) = default;
     
-    explicit Tokenizer(std::string_view expr) : expression(expr), current(expression.begin()) {
+    explicit Tokenizer(const std::string_view expr) : expression(expr), current(expression.begin()) {
         if (!matchedBrackets())
             throw std::invalid_argument("Mismatched parentheses");
-        else if (!isValidCharExpr())
+        if (!isValidCharExpr())
             throw std::invalid_argument("Invalid Character detected");
     }
 
@@ -116,7 +117,7 @@ private:
         return false;
     }
     
-    static bool isOperator(std::string::const_iterator it) {
+    static bool isOperator(const std::string::const_iterator it) {
         return std::string{"+-*/^"}.find(*it) != std::string::npos;
     }
     
